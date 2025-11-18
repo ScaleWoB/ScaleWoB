@@ -13,6 +13,7 @@ dependencies = [
 dev = [
     "ipython>=9.7.0",
     "poethepoet>=0.37.0",
+    "pre-commit>=4.0.0",
     "pyright>=1.1.407",
     "ruff>=0.14.5",
 ]
