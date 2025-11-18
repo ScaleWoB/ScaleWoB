@@ -1,0 +1,35 @@
+[project]
+name = "scalewob"
+version = "0.1.0"
+description = "Python SDK for evaluating in ScaleWoB: Scalable world-of-bit that revolutionizes the evaluation of Computer-Use Agents."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pillow>=12.0.0",
+    "selenium>=4.38.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.7.0",
+    "poethepoet>=0.37.0",
+    "pyright>=1.1.407",
+    "ruff>=0.14.5",
+]
+
+[tool.poe.tasks]
+_ruff_check_format = "ruff format . --check --preview"
+_ruff_check = "ruff check . --preview"
+_pyright = "pyright"
+_ruff_sort_imports = "ruff check --select I --fix . --preview"
+_ruff_format_code = "ruff format . --preview"
+fix = "ruff check --fix . --preview"
+fix_unsafe = "ruff check --preview --fix --unsafe-fixes ."
+
+[[tool.poe.tasks.format]]
+sequence = ['_ruff_sort_imports', '_ruff_format_code']
+ignore_fail = 'return_non_zero'
+
+[[tool.poe.tasks.check]]
+sequence = ['_ruff_check_format', '_ruff_check', '_pyright']
+ignore_fail = 'return_non_zero'
