@@ -1,0 +1,29 @@
+version = 1
+SPDX-PackageName = "scalewob"
+SPDX-PackageSupplier = "Guohong Liu <112002598+Zsbyqx20@users.noreply.github.com>"
+SPDX-PackageDownloadLocation = "https://github.com/ScaleWoB/ScaleWoB"
+
+# All source code files
+[[annotations]]
+path = "src/scalewob/**"
+SPDX-FileCopyrightText = "Guohong Liu <112002598+Zsbyqx20@users.noreply.github.com>"
+SPDX-License-Identifier = "MIT"
+
+# Documentation files
+[[annotations]]
+path = ["README.md", "**/*.md"]
+SPDX-FileCopyrightText = "Guohong Liu <112002598+Zsbyqx20@users.noreply.github.com>"
+SPDX-License-Identifier = "MIT"
+
+# Configuration files (YAML, TOML, JSON, etc.)
+[[annotations]]
+path = ["*.toml", "*.yaml", "*.yml", "*.json", ".github/**"]
+SPDX-FileCopyrightText = "Guohong Liu <112002598+Zsbyqx20@users.noreply.github.com>"
+SPDX-License-Identifier = "MIT"
+
+# Fallback for any other files (including .gitignore, uv.lock, etc.)
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Guohong Liu <112002598+Zsbyqx20@users.noreply.github.com>"
+SPDX-License-Identifier = "CC0-1.0"

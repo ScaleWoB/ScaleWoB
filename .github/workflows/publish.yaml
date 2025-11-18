@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2025 Guohong Liu <112002598+Zsbyqx20@users.noreply.github.com>
+#
+# SPDX-License-Identifier: MIT
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  pypi-publish:
+    name: upload release to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+            enable-cache: true
+            cache-dependency-glob: "uv.lock"
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish package distributions to PyPI
+        run: uv publish
