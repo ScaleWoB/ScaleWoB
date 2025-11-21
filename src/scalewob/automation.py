@@ -4,7 +4,7 @@ Core automation class for ScaleWoB environments
 
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .exceptions import BrowserError, CommandError, EvaluationError, TimeoutError
 
@@ -49,6 +49,7 @@ class ScaleWoBAutomation:
         self.driver = None
         self._sdk_evaluation_active = False
         self._last_evaluation_result = None
+        self._trajectory: List[Dict[str, Any]] = []
 
     def __enter__(self):
         """Context manager entry"""
@@ -203,6 +204,15 @@ class ScaleWoBAutomation:
             else:
                 raise CommandError(f"Command '{command}' failed: {error_msg}")
 
+    def _record_trajectory(self, action_type: str, data: Dict[str, Any]):
+        """Record an action in the trajectory history."""
+        trajectory_entry = {
+            "timestamp": int(time.time() * 1000),  # Milliseconds
+            "type": action_type,
+            "data": data,
+        }
+        self._trajectory.append(trajectory_entry)
+
     def click(self, x: int, y: int, delay: int = 100) -> Dict[str, Any]:
         """
         Click at coordinates (x, y).
@@ -215,9 +225,22 @@ class ScaleWoBAutomation:
         Returns:
             Element information after click
         """
-        return self._send_command(
+        result = self._send_command(
             "click", {"x": x, "y": y, "options": {"delay": delay}}
         )
+        self._record_trajectory(
+            "click",
+            {
+                "x": x,
+                "y": y,
+                "element": result.get("element"),
+                "tagName": result.get("element", {}).get("tagName", ""),
+                "id": result.get("element", {}).get("id", ""),
+                "className": result.get("element", {}).get("className", ""),
+                "text": result.get("element", {}).get("text", ""),
+            },
+        )
+        return result
 
     def type(self, text: str, typing_delay: int = 50) -> Dict[str, Any]:
         """
@@ -232,10 +255,26 @@ class ScaleWoBAutomation:
         Returns:
             Element information after typing
         """
-        return self._send_command(
+        result = self._send_command(
             "type",
             {"text": text, "options": {"typingDelay": typing_delay}},
         )
+        self._record_trajectory(
+            "keypress",
+            {
+                "text": text,
+                "element": result.get("element"),
+                "target": {
+                    "tagName": result.get("element", {}).get("tagName", ""),
+                    "id": result.get("element", {}).get("id", ""),
+                    "className": result.get("element", {}).get("className", ""),
+                    "inputType": result.get("element", {}).get("type", ""),
+                    "isInput": result.get("element", {}).get("tagName", "")
+                    in ["INPUT", "TEXTAREA", "SELECT"],
+                },
+            },
+        )
+        return result
 
     def scroll(
         self, x: int, y: int, direction: str = "down", distance: int = 100
@@ -252,10 +291,23 @@ class ScaleWoBAutomation:
         Returns:
             Scroll result
         """
-        return self._send_command(
+        result = self._send_command(
             "scroll",
             {"x": x, "y": y, "direction": direction, "options": {"distance": distance}},
         )
+        self._record_trajectory(
+            "scroll",
+            {
+                "x": x,
+                "y": y,
+                "direction": direction,
+                "distance": distance,
+                "deltaX": result.get("deltaX", 0),
+                "deltaY": result.get("deltaY", 0),
+                "eventType": "wheel",
+            },
+        )
+        return result
 
     def long_press(self, x: int, y: int, duration: int = 1000) -> Dict[str, Any]:
         """
@@ -269,9 +321,20 @@ class ScaleWoBAutomation:
         Returns:
             Long press result
         """
-        return self._send_command(
+        result = self._send_command(
             "long_press", {"x": x, "y": y, "options": {"duration": duration}}
         )
+        self._record_trajectory(
+            "touch",
+            {
+                "x": x,
+                "y": y,
+                "duration": duration,
+                "touchType": "long_press",
+                "element": result.get("element"),
+            },
+        )
+        return result
 
     def drag(
         self, x: int, y: int, direction: str = "down", distance: int = 100
@@ -288,10 +351,22 @@ class ScaleWoBAutomation:
         Returns:
             Drag result
         """
-        return self._send_command(
+        result = self._send_command(
             "drag",
             {"x": x, "y": y, "direction": direction, "options": {"distance": distance}},
         )
+        self._record_trajectory(
+            "touch",
+            {
+                "x": x,
+                "y": y,
+                "direction": direction,
+                "distance": distance,
+                "touchType": "drag",
+                "element": result.get("element"),
+            },
+        )
+        return result
 
     def back(self) -> Dict[str, Any]:
         """
@@ -300,7 +375,14 @@ class ScaleWoBAutomation:
         Returns:
             Navigation result
         """
-        return self._send_command("back")
+        result = self._send_command("back")
+        self._record_trajectory(
+            "navigation",
+            {
+                "action": "back",
+            },
+        )
+        return result
 
     def get_state(self) -> Dict[str, Any]:
         """
@@ -425,6 +507,9 @@ class ScaleWoBAutomation:
         if not self.driver:
             raise BrowserError("Browser not initialized. Call start() first.")
 
+        # Clear trajectory for fresh start
+        self._trajectory = []
+
         try:
             from selenium.webdriver.common.by import By
 
@@ -493,6 +578,7 @@ class ScaleWoBAutomation:
         Finish evaluation and get results.
 
         This sends the evaluate command to the environment and waits for results.
+        The trajectory of actions is automatically included in the evaluation.
 
         Args:
             params: Evaluation parameters (environment-specific)
@@ -509,7 +595,11 @@ class ScaleWoBAutomation:
             )
 
         try:
-            result = self._send_command("evaluate", params or {}, timeout=10000)
+            # Merge trajectory into params
+            eval_params = params or {}
+            eval_params["trajectory"] = self._trajectory
+
+            result = self._send_command("evaluate", eval_params, timeout=10000)
             self._last_evaluation_result = result
             self._sdk_evaluation_active = False
             return result
@@ -525,6 +615,38 @@ class ScaleWoBAutomation:
             Last evaluation result or None
         """
         return self._last_evaluation_result
+
+    def get_trajectory(self) -> List[Dict[str, Any]]:
+        """
+        Get current action trajectory.
+
+        Returns a copy of the trajectory history containing all actions
+        performed since start_evaluation() was called.
+
+        Returns:
+            List of trajectory entries with timestamp, type, and data
+
+        Example:
+            >>> trajectory = auto.get_trajectory()
+            >>> print(f"Collected {len(trajectory)} actions")
+            >>> for action in trajectory:
+            ...     print(f"{action['type']} at {action['timestamp']}")
+        """
+        return self._trajectory.copy()
+
+    def clear_trajectory(self):
+        """
+        Clear the current trajectory history.
+
+        This is useful if you want to reset the trajectory without
+        restarting the evaluation. Note that start_evaluation()
+        automatically clears the trajectory.
+
+        Example:
+            >>> auto.clear_trajectory()
+            >>> print(len(auto.get_trajectory()))  # 0
+        """
+        self._trajectory = []
 
     def close(self):
         """Close browser and cleanup resources"""

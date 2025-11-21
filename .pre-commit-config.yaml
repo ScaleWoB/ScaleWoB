@@ -1,23 +1,16 @@
 repos:
   - repo: local
     hooks:
-      - id: ruff-format
-        name: ruff format
-        entry: ruff format --preview
+      - id: format
+        name: format
+        entry: uv run poe format
         language: system
         types: [python]
         pass_filenames: false
 
-      - id: ruff-check
-        name: ruff check
-        entry: ruff check --fix --preview
-        language: system
-        types: [python]
-        pass_filenames: false
-
-      - id: pyright
-        name: pyright
-        entry: pyright
+      - id: check
+        name: check
+        entry: uv run poe check
         language: system
         types: [python]
         pass_filenames: false
