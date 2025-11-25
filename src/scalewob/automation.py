@@ -88,6 +88,7 @@ class ScaleWoBAutomation:
             self.driver = webdriver.Safari(options=options)
         else:
             raise BrowserError(f"Unsupported browser: {self.browser}")
+        self.driver.maximize_window()
 
     def start(self):
         """
