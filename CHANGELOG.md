@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.3.1 (2025-11-25)
+
+### Bug Fixes
+
+- Use dynamic version and correct screenshot scale factor
+  ([`b0efcfb`](https://github.com/ScaleWoB/ScaleWoB/commit/b0efcfb94641490a54df05ad9b2cf1dc8c190110))
+
+
 ## v0.3.0 (2025-11-25)
 
 ### Build System
