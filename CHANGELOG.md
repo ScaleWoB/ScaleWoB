@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.3.0 (2025-11-25)
+
+### Build System
+
+- **release**: Update semantic-release build command to upgrade lock file
+  ([`4acdf6b`](https://github.com/ScaleWoB/ScaleWoB/commit/4acdf6bad1f423a470dcf453a6d0f5cb41f1cd05))
+
+### Features
+
+- **automation**: Add configurable screenshot quality with coordinate scaling
+  ([`bd0e650`](https://github.com/ScaleWoB/ScaleWoB/commit/bd0e650fc110a7ce92b86975cf7cd34247e51992))
+
+- **automation**: Maximize browser window on initialization
+  ([`1add2fc`](https://github.com/ScaleWoB/ScaleWoB/commit/1add2fca10ee338145d79f44b90a816348dfcff6))
+
+
 ## v0.2.0 (2025-11-22)
 
 ### Build System
