@@ -448,7 +448,7 @@ class ScaleWoBAutomation:
             {
                 "width": original_width,
                 "height": original_height,
-                "deviceScaleFactor": 1,
+                "deviceScaleFactor": self._screenshot_scale,
                 "mobile": True,
                 "screenOrientation": {"angle": 0, "type": "portraitPrimary"},
             },

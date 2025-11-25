@@ -21,6 +21,8 @@ Example:
     print(result)
 """
 
+from importlib.metadata import version as get_version
+
 from .automation import ScaleWoBAutomation
 from .exceptions import (
     BrowserError,
@@ -30,7 +32,7 @@ from .exceptions import (
     TimeoutError,
 )
 
-__version__ = "0.1.0"
+__version__ = get_version(__package__)  # type: ignore
 __all__ = [
     "ScaleWoBAutomation",
     "ScaleWoBError",
