@@ -70,7 +70,7 @@ auto = ScaleWoBAutomation(
 
 ### Initialization
 
-#### `ScaleWoBAutomation(env_id, browser='chrome', headless=False, base_url='https://scalewob.github.io', timeout=5000)`
+#### `ScaleWoBAutomation(env_id, browser='chrome', headless=False, base_url='https://scalewob.github.io', timeout=5000, screenshot_quality='high')`
 
 Initialize automation interface for ScaleWoB environments.
 
@@ -80,6 +80,7 @@ Initialize automation interface for ScaleWoB environments.
 - `headless` (bool): Run browser in headless mode
 - `base_url` (str): Base URL for ScaleWoB launcher
 - `timeout` (int): Default timeout for operations in milliseconds
+- `screenshot_quality` (str): Screenshot quality ('low' for 1x scale, 'high' for 3x scale)
 
 ### Core Methods
 

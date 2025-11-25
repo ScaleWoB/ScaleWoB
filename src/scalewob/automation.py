@@ -4,7 +4,7 @@ Core automation class for ScaleWoB environments
 
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from .exceptions import BrowserError, CommandError, EvaluationError, TimeoutError
 
@@ -22,6 +22,7 @@ class ScaleWoBAutomation:
         headless: Run browser in headless mode
         base_url: Base URL for ScaleWoB launcher (default: https://scalewob.github.io)
         timeout: Default timeout for operations in milliseconds
+        screenshot_quality: Screenshot quality ('low' for 1x scale, 'high' for 3x scale)
 
     Example:
         >>> auto = ScaleWoBAutomation(env_id='booking-hotel-simple')
@@ -35,10 +36,11 @@ class ScaleWoBAutomation:
     def __init__(
         self,
         env_id: str,
-        browser: str = "chrome",
+        browser: Literal["chrome", "firefox", "safari"] = "chrome",
         headless: bool = False,
         base_url: str = "https://scalewob.github.io",
         timeout: int = 5000,
+        screenshot_quality: Literal["low", "high"] = "high",
     ):
         self.env_id = env_id
         self.browser = browser
@@ -50,6 +52,7 @@ class ScaleWoBAutomation:
         self._sdk_evaluation_active = False
         self._last_evaluation_result = None
         self._trajectory: List[Dict[str, Any]] = []
+        self._screenshot_scale = 1.0 if screenshot_quality == "low" else 3.0
 
     def __enter__(self):
         """Context manager entry"""
@@ -99,9 +102,12 @@ class ScaleWoBAutomation:
         # Initialize Selenium driver
         self._init_driver()
 
+        if not self.driver:
+            raise ValueError("self.driver not initialized")
+
         # Navigate to launcher page
         launcher_url = f"{self.base_url}/#/launcher/{self.env_id}"
-        self.driver.get(launcher_url)  # type: ignore
+        self.driver.get(launcher_url)
 
         # Wait for page to load
         time.sleep(2)
@@ -132,6 +138,9 @@ class ScaleWoBAutomation:
 
         if timeout is None:
             timeout = self.default_timeout
+
+        if not self.driver:
+            raise ValueError("self.driver not initialized")
 
         command_id = f"cmd_{self.command_id}"
         self.command_id += 1
@@ -183,7 +192,7 @@ class ScaleWoBAutomation:
         """
 
         try:
-            result = self.driver.execute_async_script(script)  # type: ignore
+            result = self.driver.execute_async_script(script)
 
             # Check if result contains an error from our callback
             if isinstance(result, dict) and "error" in result:
@@ -226,6 +235,8 @@ class ScaleWoBAutomation:
         Returns:
             Element information after click
         """
+        x = int(float(x) / self._screenshot_scale)
+        y = int(float(y) / self._screenshot_scale)
         result = self._send_command(
             "click", {"x": x, "y": y, "options": {"delay": delay}}
         )
@@ -292,6 +303,8 @@ class ScaleWoBAutomation:
         Returns:
             Scroll result
         """
+        x = int(float(x) / self._screenshot_scale)
+        y = int(float(y) / self._screenshot_scale)
         result = self._send_command(
             "scroll",
             {"x": x, "y": y, "direction": direction, "options": {"distance": distance}},
@@ -322,6 +335,8 @@ class ScaleWoBAutomation:
         Returns:
             Long press result
         """
+        x = int(float(x) / self._screenshot_scale)
+        y = int(float(y) / self._screenshot_scale)
         result = self._send_command(
             "long_press", {"x": x, "y": y, "options": {"duration": duration}}
         )
@@ -352,6 +367,8 @@ class ScaleWoBAutomation:
         Returns:
             Drag result
         """
+        x = int(float(x) / self._screenshot_scale)
+        y = int(float(y) / self._screenshot_scale)
         result = self._send_command(
             "drag",
             {"x": x, "y": y, "direction": direction, "options": {"distance": distance}},
@@ -406,12 +423,43 @@ class ScaleWoBAutomation:
             If format="pil": PIL Image object of iframe content
         """
         from selenium.webdriver.common.by import By
+        from selenium.webdriver.support import expected_conditions as EC
+        from selenium.webdriver.support.ui import WebDriverWait
 
-        iframe = self.driver.find_element(By.CSS_SELECTOR, "iframe")  # type: ignore
+        if not self.driver:
+            raise ValueError("self.driver not initialized")
+
+        iframe = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "iframe"))
+        )
+        original_size = iframe.size
+        original_width = original_size["width"]
+        original_height = original_size["height"]
+        iframe_src = iframe.get_attribute("src")
+
+        if not iframe_src:
+            raise ValueError("Iframe lacks `src` attribute")
+
+        self.driver.execute_script(f"window.open('{iframe_src}', '_blank');")
+        self.driver.switch_to.window(self.driver.window_handles[1])
+
+        self.driver.execute_cdp_cmd(
+            "Emulation.setDeviceMetricsOverride",
+            {
+                "width": original_width,
+                "height": original_height,
+                "deviceScaleFactor": 1,
+                "mobile": True,
+                "screenOrientation": {"angle": 0, "type": "portraitPrimary"},
+            },
+        )
+        WebDriverWait(self.driver, 10).until(
+            lambda d: d.execute_script("return document.readyState") == "complete"
+        )
 
         try:
             # Take screenshot of iframe element
-            base64_data = iframe.screenshot_as_base64
+            base64_data = self.driver.get_screenshot_as_base64()
 
             if format == "base64":
                 return base64_data
@@ -431,8 +479,8 @@ class ScaleWoBAutomation:
             else:
                 raise ValueError(f"Invalid format: {format}. Use 'base64' or 'pil'")
         finally:
-            # Always switch back to default content
-            self.driver.switch_to.default_content()  # type: ignore
+            self.driver.close()
+            self.driver.switch_to.window(self.driver.window_handles[0])
 
     def get_element_info(self, x: int, y: int) -> Dict[str, Any]:
         """
@@ -445,6 +493,8 @@ class ScaleWoBAutomation:
         Returns:
             Element information (position, size, attributes, etc.)
         """
+        x = int(float(x) / self._screenshot_scale)
+        y = int(float(y) / self._screenshot_scale)
         return self._send_command("get-element-info", {"x": x, "y": y})
 
     def get_element_info_by_selector(self, selector: str) -> Dict[str, Any]:
