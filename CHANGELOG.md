@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.4.0 (2025-11-27)
+
+### Build System
+
+- **poe**: Add semantic-release tasks for version management
+  ([`e23ca86`](https://github.com/ScaleWoB/ScaleWoB/commit/e23ca864c0a982fa6b2b5066ad8114f290564474))
+
+### Features
+
+- **api**: Add fetch_environments function for environment metadata
+  ([`0a79766`](https://github.com/ScaleWoB/ScaleWoB/commit/0a797661b9424e63eac12481c27656c9be1b5319))
+
+- **automation**: Add stealth mode options to Chrome driver
+  ([`077d422`](https://github.com/ScaleWoB/ScaleWoB/commit/077d422f2b99d88766379a1be980f75113737a17))
+
+
 ## v0.3.2 (2025-11-27)
 
 ### Build System
