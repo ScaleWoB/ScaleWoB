@@ -82,10 +82,10 @@ with ScaleWoBAutomation(env_id='booking-hotel-simple') as auto:
 ```python
 auto = ScaleWoBAutomation(
     env_id='booking-hotel-simple',
-    browser='chrome',           # 'chrome', 'firefox', or 'safari'
     headless=False,             # Run in headless mode
-    base_url='https://scalewob.github.io',
-    timeout=5000                # Default timeout in milliseconds
+    base_url='https://niumascript.com/scalewob-env',
+    timeout=5000,               # Default timeout in milliseconds
+    screenshot_quality='high'   # 'low' (1x) or 'high' (3x) scale
 )
 ```
 
@@ -93,27 +93,28 @@ auto = ScaleWoBAutomation(
 
 ### Initialization
 
-#### `ScaleWoBAutomation(env_id, browser='chrome', headless=False, base_url='https://scalewob.github.io', timeout=5000, screenshot_quality='high')`
+#### `ScaleWoBAutomation(env_id, headless=False, base_url='https://niumascript.com/scalewob-env', timeout=5000, screenshot_quality='high')`
 
 Initialize automation interface for ScaleWoB environments.
 
 **Parameters:**
 - `env_id` (str): Environment ID to launch
-- `browser` (str): Browser type ('chrome', 'firefox', 'safari')
-- `headless` (bool): Run browser in headless mode
-- `base_url` (str): Base URL for ScaleWoB launcher
-- `timeout` (int): Default timeout for operations in milliseconds
-- `screenshot_quality` (str): Screenshot quality ('low' for 1x scale, 'high' for 3x scale)
+- `headless` (bool): Run browser in headless mode (default: False). Uses Chrome browser.
+- `base_url` (str): Base URL for ScaleWoB environments (default: 'https://niumascript.com/scalewob-env')
+- `timeout` (int): Default timeout for operations in milliseconds (default: 5000)
+- `screenshot_quality` (str): Screenshot quality - 'low' for 1x scale, 'high' for 3x scale (default: 'high')
+
+**Note:** Currently only Chrome browser is supported. The browser runs with stealth mode options to avoid detection.
 
 ### Core Methods
 
 #### `start()`
 
-Initialize browser and navigate to environment launcher. Must be called before any other automation methods.
+Initialize Chrome browser and navigate to the environment page. Must be called before any other automation methods. Waits for DOM to be fully loaded before returning.
 
 #### `start_evaluation()`
 
-Start evaluation mode in the launcher UI. Clicks the Play Mode toggle and Start button to initialize evaluation mode.
+Start evaluation mode. Ensures the environment is fully initialized and clears the trajectory for a fresh evaluation. The environment loads ready to interact without requiring UI button clicks.
 
 #### `finish_evaluation(params=None)`
 
@@ -205,7 +206,7 @@ Get information about first element matching CSS selector.
 
 #### `take_screenshot(format='base64')`
 
-Capture screenshot of iframe environment only.
+Capture screenshot of the environment.
 
 **Parameters:**
 - `format` (str): Return format - "base64" for raw base64 string, "pil" for PIL Image object
