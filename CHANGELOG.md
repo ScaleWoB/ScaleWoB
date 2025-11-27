@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.3.2 (2025-11-27)
+
+### Build System
+
+- **semantic-release**: Add refactor to patch version bump tags
+  ([`6206290`](https://github.com/ScaleWoB/ScaleWoB/commit/6206290576d1b001678c61992281188607cf9cee))
+
+### Refactoring
+
+- **automation**: Simplify start_evaluation by removing Play Mode toggle
+  ([`9c5bb97`](https://github.com/ScaleWoB/ScaleWoB/commit/9c5bb978181a9ebad9cda0b23fc9d30e0ab70e25))
+
+
 ## v0.3.1 (2025-11-25)
 
 ### Bug Fixes
