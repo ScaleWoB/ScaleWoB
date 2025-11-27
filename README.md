@@ -41,6 +41,29 @@ print(result)
 auto.close()
 ```
 
+## Discovering Environments
+
+Fetch available environment metadata from the ScaleWoB registry:
+
+```python
+from scalewob import fetch_environments
+
+# Get all available environments
+envs = fetch_environments()
+print(f"Found {len(envs)} environments")
+
+# Filter by difficulty
+expert_envs = fetch_environments(difficulty="Expert")
+
+# Filter by platform and tags
+time_selection_envs = fetch_environments(
+    platform="Mobile Interfaces",
+    tags=["Time Selection"]
+)
+```
+
+See [Environment Discovery](#environment-discovery) in the API Reference for more details.
+
 ## Usage
 
 ### Context Manager
@@ -208,6 +231,39 @@ Get the last evaluation result.
 
 Close browser and cleanup resources.
 
+### Environment Discovery
+
+#### `fetch_environments(difficulty=None, platform=None, tags=None, force_refresh=False)`
+
+Fetch environment metadata from ScaleWoB registry with optional filtering.
+
+**Parameters:**
+- `difficulty` (str, optional): Filter by difficulty level (e.g., "Basic", "Advanced", "Expert")
+- `platform` (str, optional): Filter by platform (e.g., "Mobile Interfaces")
+- `tags` (list, optional): Filter by tags (returns environments matching any tag)
+- `force_refresh` (bool): Bypass cache and fetch fresh data (default: False)
+
+**Returns:** List of environment metadata dictionaries
+
+**Raises:** `NetworkError` if fetching or parsing fails
+
+**Example:**
+```python
+from scalewob import fetch_environments
+
+# Get all environments
+all_envs = fetch_environments()
+
+# Filter by multiple criteria
+filtered = fetch_environments(
+    difficulty="Expert",
+    platform="Mobile Interfaces"
+)
+
+# Force refresh cache
+fresh = fetch_environments(force_refresh=True)
+```
+
 ## Exception Handling
 
 ```python
@@ -216,7 +272,8 @@ from scalewob import (
     TimeoutError,       # Operation timeout
     CommandError,       # Command execution failure
     EvaluationError,    # Evaluation failure
-    BrowserError        # Browser automation failure
+    BrowserError,       # Browser automation failure
+    NetworkError        # Network operation failure
 )
 
 try:
