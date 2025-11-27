@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.4.1 (2025-11-28)
+
+### Documentation
+
+- Add environment discovery API documentation
+  ([`b0adac0`](https://github.com/ScaleWoB/ScaleWoB/commit/b0adac070c986e299b0305cac7610891b8166e73))
+
+### Refactoring
+
+- **automation**: Simplify browser support and enhance command execution
+  ([`8d2921e`](https://github.com/ScaleWoB/ScaleWoB/commit/8d2921e355532c856ffbbd07e7ca5c1143dacfe3))
+
+
 ## v0.4.0 (2025-11-27)
 
 ### Build System
