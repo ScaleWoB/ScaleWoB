@@ -23,11 +23,13 @@ Example:
 
 from importlib.metadata import version as get_version
 
+from .api import fetch_environments
 from .automation import ScaleWoBAutomation
 from .exceptions import (
     BrowserError,
     CommandError,
     EvaluationError,
+    NetworkError,
     ScaleWoBError,
     TimeoutError,
 )
@@ -35,9 +37,11 @@ from .exceptions import (
 __version__ = get_version(__package__)  # type: ignore
 __all__ = [
     "ScaleWoBAutomation",
+    "fetch_environments",
     "ScaleWoBError",
     "TimeoutError",
     "CommandError",
     "EvaluationError",
     "BrowserError",
+    "NetworkError",
 ]

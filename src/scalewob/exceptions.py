@@ -31,3 +31,9 @@ class BrowserError(ScaleWoBError):
     """Raised when browser automation fails"""
 
     pass
+
+
+class NetworkError(ScaleWoBError):
+    """Raised when network operations fail"""
+
+    pass
