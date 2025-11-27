@@ -548,9 +548,8 @@ class ScaleWoBAutomation:
         """
         Start evaluation mode in the launcher UI.
 
-        This clicks the Play Mode toggle (if needed) and Start button to properly
-        initialize evaluation mode through the frontend React UI.
-        Waits for iframe to be ready before returning.
+        This clicks the Start button to properly initialize evaluation mode
+        through the frontend React UI. Waits for iframe to be ready before returning.
         """
         if self._sdk_evaluation_active:
             raise EvaluationError("Evaluation already started")
@@ -563,18 +562,6 @@ class ScaleWoBAutomation:
 
         try:
             from selenium.webdriver.common.by import By
-
-            # Check if Play Mode toggle is ON (green) - if so, click to turn it OFF
-            play_mode_toggle = self.driver.find_element(
-                By.XPATH,
-                "//button[contains(@class, 'bg-green-600') or contains(@class, 'bg-gray-300')]",
-            )
-
-            # If toggle has green background, it's ON - click to switch to Evaluate Mode
-            class_attr = play_mode_toggle.get_attribute("class")
-            if class_attr and "bg-green-600" in class_attr:
-                play_mode_toggle.click()
-                time.sleep(0.5)
 
             # Click the Start button to begin evaluation
             start_button = self.driver.find_element(
