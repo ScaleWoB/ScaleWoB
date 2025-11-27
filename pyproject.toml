@@ -54,6 +54,8 @@ _ruff_sort_imports = "ruff check --select I --fix . --preview"
 _ruff_format_code = "ruff format . --preview"
 fix = "ruff check --fix . --preview"
 fix_unsafe = "ruff check --preview --fix --unsafe-fixes ."
+release_preview = "semantic-release -v --noop version"
+release = "semantic-release version --push --vcs-release"
 
 [[tool.poe.tasks.format]]
 sequence = ['_ruff_sort_imports', '_ruff_format_code']
