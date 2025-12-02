@@ -127,22 +127,21 @@ Finish evaluation and get results.
 
 ### Interaction Methods
 
-#### `click(x, y, delay=100)`
+#### `click(x, y)`
 
 Click at coordinates (x, y).
 
 **Parameters:**
 - `x` (int): Horizontal coordinate
 - `y` (int): Vertical coordinate
-- `delay` (int): Delay before clicking in milliseconds
 
-#### `type(text, typing_delay=50)`
+#### `type(text, append=False)`
 
 Type text into the currently focused element. An element must be focused first (e.g., via click).
 
 **Parameters:**
 - `text` (str): Text to type
-- `typing_delay` (int): Delay between keystrokes in milliseconds
+- `append` (bool): If True, append to existing text; if False, clear field first (default: False)
 
 #### `scroll(x, y, direction='down', distance=100)`
 
@@ -163,46 +162,21 @@ Long press at coordinates (x, y).
 - `y` (int): Vertical coordinate
 - `duration` (int): Duration of press in milliseconds
 
-#### `drag(x, y, direction='down', distance=100)`
+#### `drag(x, y, end_x, end_y)`
 
-Drag from coordinates (x, y) in specified direction.
+Drag from start coordinates to end coordinates.
 
 **Parameters:**
-- `x` (int): Horizontal coordinate
-- `y` (int): Vertical coordinate
-- `direction` (str): Drag direction ('up', 'down', 'left', 'right')
-- `distance` (int): Distance to drag in pixels
+- `x` (int): Starting horizontal coordinate
+- `y` (int): Starting vertical coordinate
+- `end_x` (int): Ending horizontal coordinate
+- `end_y` (int): Ending vertical coordinate
 
 #### `back()`
 
 Go back in navigation history.
 
 ### State and Information Methods
-
-#### `get_state()`
-
-Get current environment state including URL, title, viewport, etc.
-
-**Returns:** Environment state dictionary
-
-#### `get_element_info(x, y)`
-
-Get information about element at coordinates (x, y).
-
-**Parameters:**
-- `x` (int): Horizontal coordinate
-- `y` (int): Vertical coordinate
-
-**Returns:** Element information (position, size, attributes, etc.)
-
-#### `get_element_info_by_selector(selector)`
-
-Get information about first element matching CSS selector.
-
-**Parameters:**
-- `selector` (str): CSS selector for element
-
-**Returns:** Element information dictionary
 
 #### `take_screenshot(format='base64')`
 
@@ -213,20 +187,39 @@ Capture screenshot of the environment.
 
 **Returns:** Base64 string or PIL Image object
 
-#### `execute_script(script)`
-
-Execute arbitrary JavaScript in the environment.
-
-**Parameters:**
-- `script` (str): JavaScript code to execute
-
-**Returns:** Script execution result
-
 #### `get_evaluation_result()`
 
 Get the last evaluation result.
 
 **Returns:** Last evaluation result or None
+
+#### `get_trajectory()`
+
+Get current action trajectory.
+
+Returns a copy of the trajectory history containing all actions performed since `start_evaluation()` was called.
+
+**Returns:** List of trajectory entries with timestamp, type, and data
+
+**Example:**
+```python
+trajectory = auto.get_trajectory()
+print(f"Collected {len(trajectory)} actions")
+for action in trajectory:
+    print(f"{action['type']} at {action['timestamp']}")
+```
+
+#### `clear_trajectory()`
+
+Clear the current trajectory history.
+
+This is useful if you want to reset the trajectory without restarting the evaluation. Note that `start_evaluation()` automatically clears the trajectory.
+
+**Example:**
+```python
+auto.clear_trajectory()
+print(len(auto.get_trajectory()))  # 0
+```
 
 #### `close()`
 

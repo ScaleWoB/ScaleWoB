@@ -56,15 +56,39 @@ class ScaleWoBAutomation:
         self._screenshot_scale = 1.0 if screenshot_quality == "low" else 3.0
 
     def __enter__(self):
-        """Context manager entry"""
+        """
+        Context manager entry.
+
+        Returns:
+            self: The ScaleWoBAutomation instance for use in the with statement
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - cleanup resources"""
+        """
+        Context manager exit - cleanup resources.
+
+        Automatically closes the browser and cleans up resources when
+        exiting the with statement, regardless of whether an exception occurred.
+
+        Args:
+            exc_type: Exception type if an exception was raised
+            exc_val: Exception value if an exception was raised
+            exc_tb: Exception traceback if an exception was raised
+        """
         self.close()
 
     def _init_driver(self):
-        """Initialize Selenium WebDriver"""
+        """
+        Initialize Selenium WebDriver with Chrome.
+
+        Configures Chrome with mobile emulation (iPhone viewport), stealth mode
+        options to avoid automation detection, and headless mode if specified.
+        Sets up a 390x844 viewport with 3x pixel ratio for mobile testing.
+
+        Raises:
+            BrowserError: If Selenium is not installed
+        """
         try:
             from selenium import webdriver
             from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -120,519 +144,81 @@ class ScaleWoBAutomation:
         except Exception as e:
             raise TimeoutError(f"DOM not ready within {timeout}ms: {str(e)}")
 
-    def _execute_click(self, params: Dict[str, Any], timeout: int) -> Dict[str, Any]:
-        """Execute click command directly."""
-        assert self.driver is not None  # Type narrowing for type checker
-
-        x = params.get("x", 0)
-        y = params.get("y", 0)
-        delay = params.get("options", {}).get("delay", 100)
-
-        script = f"""
-        return (function() {{
-            try {{
-                // Wait for delay
-                const startTime = Date.now();
-                while (Date.now() - startTime < {delay}) {{}}
-
-                // Get element at coordinates
-                const element = document.elementFromPoint({x}, {y});
-                if (!element) {{
-                    return {{success: false, error: 'No element at coordinates ({x}, {y})'}};
-                }}
-
-                // Focus the element if it's focusable
-                if (element.focus && typeof element.focus === 'function') {{
-                    try {{
-                        element.focus();
-                    }} catch (e) {{
-                        // Some elements may throw when focusing, ignore
-                    }}
-                }}
-
-                // Create and dispatch click event
-                const clickEvent = new MouseEvent('click', {{
-                    view: window,
-                    bubbles: true,
-                    cancelable: true,
-                    clientX: {x},
-                    clientY: {y}
-                }});
-                element.dispatchEvent(clickEvent);
-
-                // Also trigger native click for form elements
-                if (element.click) {{
-                    element.click();
-                }}
-
-                // Get element info
-                const rect = element.getBoundingClientRect();
-                return {{
-                    success: true,
-                    element: {{
-                        tagName: element.tagName,
-                        id: element.id || '',
-                        className: element.className || '',
-                        text: element.textContent?.substring(0, 100) || '',
-                        x: rect.left + rect.width / 2,
-                        y: rect.top + rect.height / 2,
-                        width: rect.width,
-                        height: rect.height
-                    }}
-                }};
-            }} catch (error) {{
-                return {{success: false, error: error.message}};
-            }}
-        }})();
+    def _execute_mobile_touch(
+        self,
+        start_point: tuple[int, int],
+        end_point: tuple[int, int] | None = None,
+        press_duration: float = 0.1,
+        move_duration: float = 0.3,
+    ):
         """
+        Unified function for all mobile gestures.
 
-        result = self.driver.execute_script(script)
-        if not result.get("success"):
-            raise CommandError(f"Click failed: {result.get('error', 'Unknown error')}")
+        Args:
+            start_point: (x, y) starting coordinates
+            end_point: (x, y) ending coordinates. If None, uses start_point (tap/long_press)
+            press_duration: How long to hold down before moving (seconds)
+            move_duration: Duration of movement (seconds)
 
-        return result.get("element", {})
-
-    def _execute_type(self, params: Dict[str, Any], timeout: int) -> Dict[str, Any]:
-        """Execute type command directly."""
-        assert self.driver is not None  # Type narrowing for type checker
-
-        text = params.get("text", "")
-        typing_delay = params.get("options", {}).get("typingDelay", 50)
-
-        script = f"""
-        return (function() {{
-            try {{
-                const text = {json.dumps(text)};
-                const typingDelay = {typing_delay};
-
-                // Get focused element
-                const element = document.activeElement;
-                if (!element || (element.tagName !== 'INPUT' &&
-                               element.tagName !== 'TEXTAREA' && !element.isContentEditable)) {{
-                    return {{success: false, error: 'No input element focused'}};
-                }}
-
-                // Type each character with delay
-                for (let i = 0; i < text.length; i++) {{
-                    const char = text[i];
-
-                    // Dispatch keydown event
-                    const keydownEvent = new KeyboardEvent('keydown', {{
-                        key: char,
-                        bubbles: true,
-                        cancelable: true
-                    }});
-                    element.dispatchEvent(keydownEvent);
-
-                    // Update value
-                    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {{
-                        element.value += char;
-                        // Trigger input event
-                        const inputEvent = new Event('input', {{bubbles: true}});
-                        element.dispatchEvent(inputEvent);
-                    }} else if (element.isContentEditable) {{
-                        element.textContent += char;
-                    }}
-
-                    // Dispatch keyup event
-                    const keyupEvent = new KeyboardEvent('keyup', {{
-                        key: char,
-                        bubbles: true,
-                        cancelable: true
-                    }});
-                    element.dispatchEvent(keyupEvent);
-
-                    // Delay between characters (busy wait)
-                    const startTime = Date.now();
-                    while (Date.now() - startTime < typingDelay) {{}}
-                }}
-
-                // Trigger change event
-                const changeEvent = new Event('change', {{bubbles: true}});
-                element.dispatchEvent(changeEvent);
-
-                // Get element info
-                const rect = element.getBoundingClientRect();
-                return {{
-                    success: true,
-                    element: {{
-                        tagName: element.tagName,
-                        id: element.id || '',
-                        className: element.className || '',
-                        type: element.type || '',
-                        value: element.value || element.textContent || '',
-                        x: rect.left + rect.width / 2,
-                        y: rect.top + rect.height / 2
-                    }}
-                }};
-            }} catch (error) {{
-                return {{success: false, error: error.message}};
-            }}
-        }})();
+        Gesture types by parameters:
+            - Tap: end_point=None, press_duration=0.1
+            - Long press: end_point=None, press_duration=1.0+
+            - Swipe/Scroll: end_point!=start_point, move_duration=0.3
+            - Drag: end_point!=start_point, move_duration=0.5+
         """
+        assert self.driver is not None
 
-        result = self.driver.execute_script(script)
+        start_x, start_y = start_point
 
-        if not result.get("success"):
-            raise CommandError(f"Type failed: {result.get('error', 'Unknown error')}")
+        # If no end_point specified, use start_point (tap/long_press)
+        if end_point is None:
+            end_x, end_y = start_x, start_y
+        else:
+            end_x, end_y = end_point
 
-        return result.get("element", {})
-
-    def _execute_scroll(self, params: Dict[str, Any], timeout: int) -> Dict[str, Any]:
-        """Execute scroll command directly."""
-        assert self.driver is not None  # Type narrowing for type checker
-
-        x = params.get("x", 0)
-        y = params.get("y", 0)
-        direction = params.get("direction", "down")
-        distance = params.get("options", {}).get("distance", 100)
-
-        # Calculate deltaX and deltaY based on direction
-        delta_map = {
-            "down": (0, distance),
-            "up": (0, -distance),
-            "right": (distance, 0),
-            "left": (-distance, 0),
-        }
-        deltaX, deltaY = delta_map.get(direction, (0, distance))
-
-        script = f"""
-        return (function() {{
-            try {{
-                const element = document.elementFromPoint({x}, {y});
-                if (!element) {{
-                    return {{success: false, error: 'No element at coordinates'}};
-                }}
-
-                // Create and dispatch wheel event
-                const wheelEvent = new WheelEvent('wheel', {{
-                    view: window,
-                    bubbles: true,
-                    cancelable: true,
-                    clientX: {x},
-                    clientY: {y},
-                    deltaX: {deltaX},
-                    deltaY: {deltaY},
-                    deltaMode: WheelEvent.DOM_DELTA_PIXEL
-                }});
-                element.dispatchEvent(wheelEvent);
-
-                // Also perform actual scroll
-                let scrollElement = element;
-                while (scrollElement && scrollElement !== document.body) {{
-                    if (scrollElement.scrollHeight > scrollElement.clientHeight ||
-                        scrollElement.scrollWidth > scrollElement.clientWidth) {{
-                        break;
-                    }}
-                    scrollElement = scrollElement.parentElement;
-                }}
-
-                if (!scrollElement) {{
-                    scrollElement = window;
-                }}
-
-                if (scrollElement === window) {{
-                    window.scrollBy({deltaX}, {deltaY});
-                }} else {{
-                    scrollElement.scrollLeft += {deltaX};
-                    scrollElement.scrollTop += {deltaY};
-                }}
-
-                return {{
-                    success: true,
-                    deltaX: {deltaX},
-                    deltaY: {deltaY}
-                }};
-            }} catch (error) {{
-                return {{success: false, error: error.message}};
-            }}
-        }})();
-        """
-
-        result = self.driver.execute_script(script)
-
-        if not result.get("success"):
-            raise CommandError(f"Scroll failed: {result.get('error', 'Unknown error')}")
-
-        return {"deltaX": result.get("deltaX", 0), "deltaY": result.get("deltaY", 0)}
-
-    def _execute_long_press(
-        self, params: Dict[str, Any], timeout: int
-    ) -> Dict[str, Any]:
-        """Execute long press command directly."""
-        assert self.driver is not None  # Type narrowing for type checker
-
-        x = params.get("x", 0)
-        y = params.get("y", 0)
-        duration = params.get("options", {}).get("duration", 1000)
-
-        script = f"""
-        return (function() {{
-            try {{
-                const element = document.elementFromPoint({x}, {y});
-                if (!element) {{
-                    return {{success: false, error: 'No element at coordinates'}};
-                }}
-
-                // Dispatch touchstart
-                const touchstartEvent = new TouchEvent('touchstart', {{
-                    bubbles: true,
-                    cancelable: true,
-                    touches: [new Touch({{
-                        identifier: 0,
-                        target: element,
-                        clientX: {x},
-                        clientY: {y}
-                    }})]
-                }});
-                element.dispatchEvent(touchstartEvent);
-
-                // Wait for duration
-                const startTime = Date.now();
-                while (Date.now() - startTime < {duration}) {{}}
-
-                // Dispatch touchend
-                const touchendEvent = new TouchEvent('touchend', {{
-                    bubbles: true,
-                    cancelable: true,
-                    changedTouches: [new Touch({{
-                        identifier: 0,
-                        target: element,
-                        clientX: {x},
-                        clientY: {y}
-                    }})]
-                }});
-                element.dispatchEvent(touchendEvent);
-
-                // Get element info
-                const rect = element.getBoundingClientRect();
-                return {{
-                    success: true,
-                    element: {{
-                        tagName: element.tagName,
-                        id: element.id || '',
-                        className: element.className || '',
-                        text: element.textContent?.substring(0, 100) || ''
-                    }}
-                }};
-            }} catch (error) {{
-                return {{success: false, error: error.message}};
-            }}
-        }})();
-        """
-
-        result = self.driver.execute_script(script)
-
-        if not result.get("success"):
-            raise CommandError(
-                f"Long press failed: {result.get('error', 'Unknown error')}"
-            )
-
-        return result.get("element", {})
-
-    def _execute_drag(self, params: Dict[str, Any], timeout: int) -> Dict[str, Any]:
-        """Execute drag command directly."""
-        assert self.driver is not None  # Type narrowing for type checker
-
-        x = params.get("x", 0)
-        y = params.get("y", 0)
-        direction = params.get("direction", "down")
-        distance = params.get("options", {}).get("distance", 100)
-
-        # Calculate end coordinates
-        end_coords = {
-            "down": (x, y + distance),
-            "up": (x, y - distance),
-            "right": (x + distance, y),
-            "left": (x - distance, y),
-        }
-        end_x, end_y = end_coords.get(direction, (x, y + distance))
-
-        script = f"""
-        return (function() {{
-            try {{
-                const element = document.elementFromPoint({x}, {y});
-                if (!element) {{
-                    return {{success: false, error: 'No element at coordinates'}};
-                }}
-
-                // Dispatch touchstart
-                const touchstartEvent = new TouchEvent('touchstart', {{
-                    bubbles: true,
-                    cancelable: true,
-                    touches: [new Touch({{
-                        identifier: 0,
-                        target: element,
-                        clientX: {x},
-                        clientY: {y}
-                    }})]
-                }});
-                element.dispatchEvent(touchstartEvent);
-
-                // Dispatch touchmove
-                const touchmoveEvent = new TouchEvent('touchmove', {{
-                    bubbles: true,
-                    cancelable: true,
-                    touches: [new Touch({{
-                        identifier: 0,
-                        target: element,
-                        clientX: {end_x},
-                        clientY: {end_y}
-                    }})]
-                }});
-                element.dispatchEvent(touchmoveEvent);
-
-                // Dispatch touchend
-                const touchendEvent = new TouchEvent('touchend', {{
-                    bubbles: true,
-                    cancelable: true,
-                    changedTouches: [new Touch({{
-                        identifier: 0,
-                        target: element,
-                        clientX: {end_x},
-                        clientY: {end_y}
-                    }})]
-                }});
-                element.dispatchEvent(touchendEvent);
-
-                // Get element info
-                const rect = element.getBoundingClientRect();
-                return {{
-                    success: true,
-                    element: {{
-                        tagName: element.tagName,
-                        id: element.id || '',
-                        className: element.className || '',
-                        text: element.textContent?.substring(0, 100) || ''
-                    }}
-                }};
-            }} catch (error) {{
-                return {{success: false, error: error.message}};
-            }}
-        }})();
-        """
-
-        result = self.driver.execute_script(script)
-
-        if not result.get("success"):
-            raise CommandError(f"Drag failed: {result.get('error', 'Unknown error')}")
-
-        return result.get("element", {})
-
-    def _execute_back(self, params: Dict[str, Any], timeout: int) -> Dict[str, Any]:
-        """Execute back navigation command."""
-        assert self.driver is not None  # Type narrowing for type checker
-
-        self.driver.back()
-        time.sleep(0.5)  # Wait for navigation
-        return {"success": True}
-
-    def _execute_get_state(
-        self, params: Dict[str, Any], timeout: int
-    ) -> Dict[str, Any]:
-        """Get current page state."""
-        assert self.driver is not None  # Type narrowing for type checker
-
-        script = """
-        return {
-            url: window.location.href,
-            title: document.title,
-            viewport: {
-                width: window.innerWidth,
-                height: window.innerHeight,
-                scrollX: window.scrollX,
-                scrollY: window.scrollY
-            },
-            readyState: document.readyState
-        };
-        """
-        return self.driver.execute_script(script)
-
-    def _execute_get_element_info(
-        self, params: Dict[str, Any], timeout: int
-    ) -> Dict[str, Any]:
-        """Get element information at coordinates."""
-        assert self.driver is not None  # Type narrowing for type checker
-
-        x = params.get("x", 0)
-        y = params.get("y", 0)
-
-        script = f"""
-        return (function() {{
-            try {{
-                const element = document.elementFromPoint({x}, {y});
-                if (!element) {{
-                    return {{success: false, error: 'No element at coordinates'}};
-                }}
-
-                const rect = element.getBoundingClientRect();
-                const computedStyle = window.getComputedStyle(element);
-
-                return {{
-                    success: true,
-                    tagName: element.tagName,
-                    id: element.id || '',
-                    className: element.className || '',
-                    text: element.textContent?.substring(0, 100) || '',
-                    value: element.value || '',
-                    type: element.type || '',
-                    href: element.href || '',
-                    src: element.src || '',
-                    position: {{
-                        x: rect.left + rect.width / 2,
-                        y: rect.top + rect.height / 2,
-                        width: rect.width,
-                        height: rect.height,
-                        top: rect.top,
-                        left: rect.left,
-                        bottom: rect.bottom,
-                        right: rect.right
-                    }},
-                    style: {{
-                        display: computedStyle.display,
-                        visibility: computedStyle.visibility,
-                        opacity: computedStyle.opacity
-                    }},
-                    attributes: Array.from(element.attributes).reduce((acc, attr) => {{
-                        acc[attr.name] = attr.value;
-                        return acc;
-                    }}, {{}})
-                }};
-            }} catch (error) {{
-                return {{success: false, error: error.message}};
-            }}
-        }})();
-        """
-
-        result = self.driver.execute_script(script)
-
-        if not result.get("success"):
-            raise CommandError(
-                f"Get element info failed: {result.get('error', 'Unknown error')}"
-            )
-
-        # Remove success flag from result
-        result.pop("success", None)
-        return result
-
-    def _execute_custom_script(
-        self, params: Dict[str, Any], timeout: int
-    ) -> Dict[str, Any]:
-        """Execute custom JavaScript."""
-        assert self.driver is not None  # Type narrowing for type checker
-
-        script = params.get("script", "")
-        if not script:
-            raise CommandError("No script provided")
+        from selenium.common.exceptions import MoveTargetOutOfBoundsException
+        from selenium.webdriver.common.actions import interaction
+        from selenium.webdriver.common.actions.action_builder import ActionBuilder
+        from selenium.webdriver.common.actions.pointer_input import PointerInput
 
         try:
-            result = self.driver.execute_script(script)
-            return result if result is not None else {}
+            pointer = PointerInput(interaction.POINTER_TOUCH, "finger")
+            actions = ActionBuilder(self.driver, mouse=pointer)
+
+            actions.pointer_action.move_to_location(start_x, start_y)
+            actions.pointer_action.pointer_down()
+            actions.pointer_action.pause(press_duration)
+            actions.pointer_action.move_to_location(end_x, end_y)
+            actions.pointer_action.pause(move_duration)
+            actions.pointer_action.pointer_up()
+
+            actions.perform()
+
+        except MoveTargetOutOfBoundsException as e:
+            raise CommandError(
+                f"Coordinates ({start_x}, {start_y}) or ({end_x}, {end_y}) is out of view port: {e}"
+            )
+
         except Exception as e:
-            raise CommandError(f"Script execution failed: {str(e)}")
+            raise CommandError(e)
 
     def _execute_evaluate(self, params: Dict[str, Any], timeout: int) -> Dict[str, Any]:
-        """Execute evaluation command."""
+        """
+        Execute evaluation command via async JavaScript.
+
+        Calls the environment's evaluateTask function with the provided parameters
+        and waits for the result. Handles both successful evaluations and errors.
+
+        Args:
+            params: Evaluation parameters to pass to the environment
+            timeout: Maximum wait time in milliseconds
+
+        Returns:
+            Evaluation result dictionary from the environment
+
+        Raises:
+            TimeoutError: If evaluation exceeds the timeout period
+        """
         assert self.driver is not None  # Type narrowing for type checker
 
         script_async = f"""
@@ -686,67 +272,7 @@ class ScaleWoBAutomation:
         self.driver.get(env_url)
 
         # Wait for DOM to be ready
-        self._wait_for_dom_ready(timeout=10000)
-
-    def _send_command(
-        self,
-        command: str,
-        params: Optional[Dict[str, Any]] = None,
-        timeout: Optional[int] = None,
-    ) -> Dict[str, Any]:
-        """
-        Execute command directly in the standalone webpage.
-
-        Args:
-            command: Command name
-            params: Command parameters
-            timeout: Command timeout in milliseconds
-
-        Returns:
-            Command result payload
-
-        Raises:
-            CommandError: If command execution fails
-            TimeoutError: If command times out
-        """
-        if params is None:
-            params = {}
-
-        if timeout is None:
-            timeout = self.default_timeout
-
-        if not self.driver:
-            raise ValueError("self.driver not initialized")
-
-        # Map commands to JavaScript implementations
-        command_handlers = {
-            "click": self._execute_click,
-            "type": self._execute_type,
-            "scroll": self._execute_scroll,
-            "long_press": self._execute_long_press,
-            "drag": self._execute_drag,
-            "back": self._execute_back,
-            "get-state": self._execute_get_state,
-            "execute-script": self._execute_custom_script,
-            "get-element-info": self._execute_get_element_info,
-            "evaluate": self._execute_evaluate,
-        }
-
-        handler = command_handlers.get(command)
-        if not handler:
-            raise CommandError(f"Unknown command: {command}")
-
-        try:
-            result = handler(params, timeout)
-            return result
-        except (TimeoutError, CommandError):
-            raise
-        except Exception as e:
-            error_msg = str(e)
-            if "timeout" in error_msg.lower():
-                raise TimeoutError(f"Command '{command}' timed out after {timeout}ms")
-            else:
-                raise CommandError(f"Command '{command}' failed: {error_msg}")
+        self._wait_for_dom_ready(timeout=self.default_timeout)
 
     def _record_trajectory(self, action_type: str, data: Dict[str, Any]):
         """Record an action in the trajectory history."""
@@ -757,74 +283,52 @@ class ScaleWoBAutomation:
         }
         self._trajectory.append(trajectory_entry)
 
-    def click(self, x: int, y: int, delay: int = 100) -> Dict[str, Any]:
+    def click(self, x: int, y: int):
         """
         Click at coordinates (x, y).
 
         Args:
             x: Horizontal coordinate
             y: Vertical coordinate
-            delay: Delay before clicking in milliseconds
-
-        Returns:
-            Element information after click
         """
         x = int(float(x) / self._screenshot_scale)
         y = int(float(y) / self._screenshot_scale)
-        result = self._send_command(
-            "click", {"x": x, "y": y, "options": {"delay": delay}}
-        )
+        self._execute_mobile_touch((x, y), move_duration=0)
         self._record_trajectory(
             "click",
-            {
-                "x": x,
-                "y": y,
-                "element": result.get("element"),
-                "tagName": result.get("element", {}).get("tagName", ""),
-                "id": result.get("element", {}).get("id", ""),
-                "className": result.get("element", {}).get("className", ""),
-                "text": result.get("element", {}).get("text", ""),
-            },
+            {"x": x, "y": y},
         )
-        return result
 
-    def type(self, text: str, typing_delay: int = 50) -> Dict[str, Any]:
-        """
-        Type text into the currently focused element.
+    def type(self, text: str, append: bool = False):
+        assert self.driver is not None
 
-        Note: An element must be focused first (e.g., via click) before typing.
+        active_element = self.driver.switch_to.active_element
+        tag_name = active_element.tag_name.lower()
 
-        Args:
-            text: Text to type
-            typing_delay: Delay between keystrokes in milliseconds
+        if (
+            tag_name not in ["input", "textarea"]
+            and active_element.get_attribute("contenteditable") != "true"
+        ):
+            raise CommandError(f"Active element is '{tag_name}', not an input field")
 
-        Returns:
-            Element information after typing
-        """
-        result = self._send_command(
-            "type",
-            {"text": text, "options": {"typingDelay": typing_delay}},
-        )
+        # Check if element is enabled and interactable
+        if not active_element.is_enabled():
+            raise CommandError("Input element is disabled")
+
+        try:
+            if not append:
+                active_element.clear()
+
+            active_element.send_keys(text)
+        except Exception as e:
+            raise CommandError(e)
+
         self._record_trajectory(
-            "keypress",
-            {
-                "text": text,
-                "element": result.get("element"),
-                "target": {
-                    "tagName": result.get("element", {}).get("tagName", ""),
-                    "id": result.get("element", {}).get("id", ""),
-                    "className": result.get("element", {}).get("className", ""),
-                    "inputType": result.get("element", {}).get("type", ""),
-                    "isInput": result.get("element", {}).get("tagName", "")
-                    in ["INPUT", "TEXTAREA", "SELECT"],
-                },
-            },
+            "input",
+            {"text": text},
         )
-        return result
 
-    def scroll(
-        self, x: int, y: int, direction: str = "down", distance: int = 100
-    ) -> Dict[str, Any]:
+    def scroll(self, x: int, y: int, direction: str = "down", distance: int = 100):
         """
         Scroll in direction from coordinates (x, y).
 
@@ -833,16 +337,18 @@ class ScaleWoBAutomation:
             y: Vertical coordinate
             direction: Scroll direction ('up', 'down', 'left', 'right')
             distance: Distance to scroll in pixels
-
-        Returns:
-            Scroll result
         """
         x = int(float(x) / self._screenshot_scale)
         y = int(float(y) / self._screenshot_scale)
-        result = self._send_command(
-            "scroll",
-            {"x": x, "y": y, "direction": direction, "options": {"distance": distance}},
-        )
+
+        delta_map = {
+            "left": (x - distance, y),
+            "right": (x + distance, y),
+            "up": (x, y - distance),
+            "down": (x, y + distance),
+        }
+
+        self._execute_mobile_touch((x, y), delta_map[direction], move_duration=0.5)
         self._record_trajectory(
             "scroll",
             {
@@ -850,14 +356,10 @@ class ScaleWoBAutomation:
                 "y": y,
                 "direction": direction,
                 "distance": distance,
-                "deltaX": result.get("deltaX", 0),
-                "deltaY": result.get("deltaY", 0),
-                "eventType": "wheel",
             },
         )
-        return result
 
-    def long_press(self, x: int, y: int, duration: int = 1000) -> Dict[str, Any]:
+    def long_press(self, x: int, y: int, duration: int = 1000):
         """
         Long press at coordinates (x, y).
 
@@ -865,15 +367,10 @@ class ScaleWoBAutomation:
             x: Horizontal coordinate
             y: Vertical coordinate
             duration: Duration of press in milliseconds
-
-        Returns:
-            Long press result
         """
         x = int(float(x) / self._screenshot_scale)
         y = int(float(y) / self._screenshot_scale)
-        result = self._send_command(
-            "long_press", {"x": x, "y": y, "options": {"duration": duration}}
-        )
+        self._execute_mobile_touch((x, y), press_duration=duration / 1000)
         self._record_trajectory(
             "touch",
             {
@@ -881,69 +378,47 @@ class ScaleWoBAutomation:
                 "y": y,
                 "duration": duration,
                 "touchType": "long_press",
-                "element": result.get("element"),
             },
         )
-        return result
 
-    def drag(
-        self, x: int, y: int, direction: str = "down", distance: int = 100
-    ) -> Dict[str, Any]:
+    def drag(self, x: int, y: int, end_x: int, end_y: int):
         """
-        Drag from coordinates (x, y) in specified direction.
+        Drag from start coordinates to end coordinates.
+
+        Performs a touch drag gesture by pressing at the start point,
+        moving to the end point, and releasing. Coordinates are automatically
+        scaled based on screenshot quality settings.
 
         Args:
-            x: Horizontal coordinate
-            y: Vertical coordinate
-            direction: Drag direction ('up', 'down', 'left', 'right')
-            distance: Distance to drag in pixels
-
-        Returns:
-            Drag result
+            x: Starting horizontal coordinate
+            y: Starting vertical coordinate
+            end_x: Ending horizontal coordinate
+            end_y: Ending vertical coordinate
         """
         x = int(float(x) / self._screenshot_scale)
         y = int(float(y) / self._screenshot_scale)
-        result = self._send_command(
-            "drag",
-            {"x": x, "y": y, "direction": direction, "options": {"distance": distance}},
-        )
+        end_x = int(float(end_x) / self._screenshot_scale)
+        end_y = int(float(end_y) / self._screenshot_scale)
+
+        self._execute_mobile_touch((x, y), (end_x, end_y))
         self._record_trajectory(
             "touch",
             {
                 "x": x,
                 "y": y,
-                "direction": direction,
-                "distance": distance,
+                "end_x": end_x,
+                "end_y": end_y,
                 "touchType": "drag",
-                "element": result.get("element"),
             },
         )
-        return result
 
-    def back(self) -> Dict[str, Any]:
+    def back(self):
         """
         Go back in navigation history.
-
-        Returns:
-            Navigation result
         """
-        result = self._send_command("back")
-        self._record_trajectory(
-            "navigation",
-            {
-                "action": "back",
-            },
-        )
-        return result
-
-    def get_state(self) -> Dict[str, Any]:
-        """
-        Get current environment state.
-
-        Returns:
-            Environment state including URL, title, viewport, etc.
-        """
-        return self._send_command("get-state")
+        assert self.driver is not None
+        self.driver.back()
+        self._record_trajectory("back", {})
 
     def take_screenshot(self, format: str = "base64") -> Any:
         """
@@ -986,68 +461,6 @@ class ScaleWoBAutomation:
         else:
             raise ValueError(f"Invalid format: {format}. Use 'base64' or 'pil'")
 
-    def get_element_info(self, x: int, y: int) -> Dict[str, Any]:
-        """
-        Get information about element at coordinates (x, y).
-
-        Args:
-            x: Horizontal coordinate
-            y: Vertical coordinate
-
-        Returns:
-            Element information (position, size, attributes, etc.)
-        """
-        x = int(float(x) / self._screenshot_scale)
-        y = int(float(y) / self._screenshot_scale)
-        return self._send_command("get-element-info", {"x": x, "y": y})
-
-    def get_element_info_by_selector(self, selector: str) -> Dict[str, Any]:
-        """
-        Get information about first element matching selector.
-
-        Note: This is a helper method that finds an element by CSS selector
-        and returns its coordinates. The primary API uses coordinate-based
-        interactions (get_element_info with x, y coordinates).
-
-        Args:
-            selector: CSS selector for element
-
-        Returns:
-            Element information (position, size, attributes, etc.)
-        """
-        # Execute JavaScript to find element and get its info
-        script = f"""
-            const element = document.querySelector('{selector}');
-            if (!element) {{
-                throw new Error('Element not found: {selector}');
-            }}
-            const rect = element.getBoundingClientRect();
-            return {{
-                tagName: element.tagName,
-                id: element.id || '',
-                className: element.className || '',
-                text: element.textContent?.substring(0, 100) || '',
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2,
-                width: rect.width,
-                height: rect.height,
-                visible: rect.width > 0 && rect.height > 0
-            }};
-        """
-        return self.execute_script(script)
-
-    def execute_script(self, script: str) -> Dict[str, Any]:
-        """
-        Execute arbitrary JavaScript in the environment.
-
-        Args:
-            script: JavaScript code to execute
-
-        Returns:
-            Script execution result
-        """
-        return self._send_command("execute-script", {"script": script})
-
     def start_evaluation(self):
         """
         Start evaluation mode.
@@ -1073,7 +486,21 @@ class ScaleWoBAutomation:
         time.sleep(1)  # Buffer for any initialization
 
         try:
-            state = self.get_state()
+            state = self.driver.execute(
+                """
+        return {
+            url: window.location.href,
+            title: document.title,
+            viewport: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                scrollX: window.scrollX,
+                scrollY: window.scrollY
+            },
+            readyState: document.readyState
+        };
+        """
+            )
             if state.get("readyState") != "complete":
                 raise EvaluationError("Environment not fully loaded")
         except Exception as e:
@@ -1120,7 +547,7 @@ class ScaleWoBAutomation:
             eval_params = params or {}
             eval_params["trajectory"] = self._trajectory
 
-            result = self._send_command("evaluate", eval_params, timeout=10000)
+            result = self._execute_evaluate(eval_params, timeout=self.default_timeout)
             self._last_evaluation_result = result
             self._sdk_evaluation_active = False
             return result
