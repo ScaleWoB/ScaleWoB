@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.5.0 (2025-12-02)
+
+### Documentation
+
+- Fix docstrings and API documentation inconsistencies
+  ([`26f49e7`](https://github.com/ScaleWoB/ScaleWoB/commit/26f49e755c2f5421666b9a3101f6d678aae7385a))
+
+### Features
+
+- **dev**: Add Jupyter notebook support and update development dependencies
+  ([`b54ec12`](https://github.com/ScaleWoB/ScaleWoB/commit/b54ec12ca278c4a98415d628d36da4df60e2b10e))
+
+
 ## v0.4.1 (2025-11-28)
 
 ### Documentation
