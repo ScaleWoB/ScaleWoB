@@ -1,6 +1,7 @@
 *.md
 !README.md
 !CHANGELOG.md
+*.ipynb
 
 ## macOS ignore patterns
 # General
