@@ -85,7 +85,8 @@ auto = ScaleWoBAutomation(
     headless=False,             # Run in headless mode
     base_url='https://niumascript.com/scalewob-env',
     timeout=5000,               # Default timeout in milliseconds
-    screenshot_quality='high'   # 'low' (1x) or 'high' (3x) scale
+    screenshot_quality='high',  # 'low' (1x) or 'high' (3x) scale on mobile
+    platform='mobile'           # 'mobile' for iPhone emulation, 'desktop' for standard browser
 )
 ```
 
@@ -93,7 +94,7 @@ auto = ScaleWoBAutomation(
 
 ### Initialization
 
-#### `ScaleWoBAutomation(env_id, headless=False, base_url='https://niumascript.com/scalewob-env', timeout=5000, screenshot_quality='high')`
+#### `ScaleWoBAutomation(env_id, headless=False, base_url='https://niumascript.com/scalewob-env', timeout=5000, screenshot_quality='high', platform='mobile')`
 
 Initialize automation interface for ScaleWoB environments.
 
@@ -102,9 +103,10 @@ Initialize automation interface for ScaleWoB environments.
 - `headless` (bool): Run browser in headless mode (default: False). Uses Chrome browser.
 - `base_url` (str): Base URL for ScaleWoB environments (default: 'https://niumascript.com/scalewob-env')
 - `timeout` (int): Default timeout for operations in milliseconds (default: 5000)
-- `screenshot_quality` (str): Screenshot quality - 'low' for 1x scale, 'high' for 3x scale (default: 'high')
+- `screenshot_quality` (str): Screenshot quality - 'low' for 1x scale, 'high' for 3x scale on mobile (default: 'high')
+- `platform` (str): Platform type - 'mobile' for iPhone emulation, 'desktop' for standard browser (default: 'mobile')
 
-**Note:** Currently only Chrome browser is supported. The browser runs with stealth mode options to avoid detection.
+**Note:** Currently only Chrome browser is supported. The browser runs with stealth mode options to avoid detection. Mobile mode uses iPhone viewport (390x844) with 3x pixel ratio and touch interactions. Desktop mode uses standard browser window (1280x800) with mouse interactions.
 
 ### Core Methods
 
@@ -156,6 +158,8 @@ Scroll in direction from coordinates (x, y).
 #### `long_press(x, y, duration=1000)`
 
 Long press at coordinates (x, y).
+
+**Note:** This is a mobile-specific gesture and will raise `CommandError` on desktop platform.
 
 **Parameters:**
 - `x` (int): Horizontal coordinate
