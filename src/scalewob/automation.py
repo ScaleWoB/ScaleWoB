@@ -21,19 +21,30 @@ class ScaleWoBAutomation:
         headless: Run browser in headless mode (default: False)
         base_url: Base URL for ScaleWoB environments (default: https://niumascript.com/scalewob-env)
         timeout: Default timeout for operations in milliseconds (default: 5000)
-        screenshot_quality: Screenshot quality - 'low' for 1x scale, 'high' for 3x scale (default: 'high')
+        screenshot_quality: Screenshot quality - 'low' for 1x scale, 'high' for 3x scale on mobile (default: 'high')
+        platform: Platform type - 'mobile' for iPhone emulation, 'desktop' for standard browser (default: 'mobile')
 
     Note:
         Currently only Chrome browser is supported. The browser runs with stealth mode
         options to avoid automation detection.
 
+        Mobile mode uses iPhone viewport (390x844) with 3x pixel ratio and touch interactions.
+        Desktop mode uses standard browser window (1280x800) with mouse interactions.
+
     Example:
+        >>> # Mobile mode (default)
         >>> auto = ScaleWoBAutomation(env_id='booking-hotel-simple')
         >>> auto.start()
         >>> auto.start_evaluation()
         >>> auto.click(x=300, y=150)  # Click at coordinates
         >>> auto.type('New York')  # Type into focused element
         >>> result = auto.finish_evaluation({'destination': 'New York'})
+        >>>
+        >>> # Desktop mode
+        >>> auto = ScaleWoBAutomation(env_id='booking-hotel-simple', platform='desktop')
+        >>> auto.start()
+        >>> auto.start_evaluation()
+        >>> auto.click(x=640, y=400)  # Click at coordinates
     """
 
     def __init__(
@@ -43,6 +54,7 @@ class ScaleWoBAutomation:
         base_url: str = "https://niumascript.com/scalewob-env",
         timeout: int = 5000,
         screenshot_quality: Literal["low", "high"] = "high",
+        platform: Literal["mobile", "desktop"] = "mobile",
     ):
         self.env_id = env_id
         self.headless = headless
@@ -53,6 +65,7 @@ class ScaleWoBAutomation:
         self._sdk_evaluation_active = False
         self._last_evaluation_result = None
         self._trajectory: List[Dict[str, Any]] = []
+        self.platform = platform
         self._screenshot_scale = 1.0 if screenshot_quality == "low" else 3.0
 
     def __enter__(self):
@@ -82,9 +95,10 @@ class ScaleWoBAutomation:
         """
         Initialize Selenium WebDriver with Chrome.
 
-        Configures Chrome with mobile emulation (iPhone viewport), stealth mode
-        options to avoid automation detection, and headless mode if specified.
-        Sets up a 390x844 viewport with 3x pixel ratio for mobile testing.
+        Configures Chrome with platform-specific settings:
+        - Mobile: iPhone viewport (390x844, 3x pixel ratio) with touch emulation
+        - Desktop: Standard browser window (1280x800)
+        Both modes include stealth options to avoid automation detection.
 
         Raises:
             BrowserError: If Selenium is not installed
@@ -96,20 +110,49 @@ class ScaleWoBAutomation:
             raise BrowserError(
                 "Selenium not installed. Install with: pip install selenium"
             )
-        mobile_emulation = {
-            "deviceMetrics": {"width": 390, "height": 844, "pixelRatio": 3.0},
-            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1",
-        }
+
         options = ChromeOptions()
+
         if self.headless:
             options.add_argument("--headless")
+
+        # Common stealth options
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option("useAutomationExtension", False)
         options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_experimental_option("mobileEmulation", mobile_emulation)
+
+        mobile_profile = {
+            "deviceMetrics": {
+                "width": 390,
+                "height": 844,
+                "pixelRatio": self._screenshot_scale,
+            },
+            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1",
+        }
+        desktop_profile = {
+            "width": 1280,
+            "height": 800,
+            "pixelRatio": self._screenshot_scale,
+        }
+
+        # Platform-specific configuration
+        if self.platform == "mobile":
+            options.add_experimental_option("mobileEmulation", mobile_profile)
+        else:
+            # Desktop mode - set window size
+            options.add_argument(
+                f"--window-size={desktop_profile['width']},{desktop_profile['height']}"
+            )
+
         self.driver = webdriver.Chrome(options=options)
+
+        # For desktop, ensure window is properly sized after creation
+        if self.platform == "desktop":
+            self.driver.set_window_size(
+                desktop_profile["width"], desktop_profile["height"]
+            )
 
     def _wait_for_dom_ready(self, timeout: int = 10000):
         """
@@ -199,6 +242,81 @@ class ScaleWoBAutomation:
                 f"Coordinates ({start_x}, {start_y}) or ({end_x}, {end_y}) is out of view port: {e}"
             )
 
+        except Exception as e:
+            raise CommandError(e)
+
+    def _execute_desktop_click(self, x: int, y: int):
+        """
+        Execute a standard mouse click at coordinates for desktop mode.
+
+        Args:
+            x: Horizontal coordinate
+            y: Vertical coordinate
+        """
+        assert self.driver is not None
+
+        from selenium.common.exceptions import MoveTargetOutOfBoundsException
+        from selenium.webdriver.common.action_chains import ActionChains
+
+        try:
+            actions = ActionChains(self.driver)
+            actions.move_by_offset(x, y).click().perform()
+            # Reset mouse position for next action
+            actions.move_by_offset(-x, -y).perform()
+        except MoveTargetOutOfBoundsException as e:
+            raise CommandError(f"Coordinates ({x}, {y}) is out of viewport: {e}")
+        except Exception as e:
+            raise CommandError(e)
+
+    def _execute_desktop_scroll(self, x: int, y: int, direction: str, distance: int):
+        """
+        Execute scroll using JavaScript for desktop mode.
+
+        Args:
+            x: Horizontal coordinate (for element targeting)
+            y: Vertical coordinate (for element targeting)
+            direction: Scroll direction ('up', 'down', 'left', 'right')
+            distance: Distance to scroll in pixels
+        """
+        assert self.driver is not None
+
+        scroll_map = {
+            "up": (0, -distance),
+            "down": (0, distance),
+            "left": (-distance, 0),
+            "right": (distance, 0),
+        }
+        scroll_x, scroll_y = scroll_map[direction]
+
+        # Scroll the window
+        self.driver.execute_script(f"window.scrollBy({scroll_x}, {scroll_y});")
+
+    def _execute_desktop_drag(self, x: int, y: int, end_x: int, end_y: int):
+        """
+        Execute drag using ActionChains for desktop mode.
+
+        Args:
+            x: Starting horizontal coordinate
+            y: Starting vertical coordinate
+            end_x: Ending horizontal coordinate
+            end_y: Ending vertical coordinate
+        """
+        assert self.driver is not None
+
+        from selenium.common.exceptions import MoveTargetOutOfBoundsException
+        from selenium.webdriver.common.action_chains import ActionChains
+
+        try:
+            actions = ActionChains(self.driver)
+            # Move to start position, press, drag to end, release
+            actions.move_by_offset(x, y).click_and_hold()
+            actions.move_by_offset(end_x - x, end_y - y).release().perform()
+            # Reset mouse position
+            actions.move_by_offset(-end_x, -end_y).perform()
+        except MoveTargetOutOfBoundsException as e:
+            raise CommandError(
+                f"Coordinates ({x}, {y}) or ({end_x}, {end_y}) is out of viewport: {e}"
+            )
         except Exception as e:
             raise CommandError(e)
 
@@ -293,7 +411,12 @@ class ScaleWoBAutomation:
         """
         x = int(float(x) / self._screenshot_scale)
         y = int(float(y) / self._screenshot_scale)
-        self._execute_mobile_touch((x, y), move_duration=0)
+
+        if self.platform == "mobile":
+            self._execute_mobile_touch((x, y), move_duration=0)
+        else:
+            self._execute_desktop_click(x, y)
+
         self._record_trajectory(
             "click",
             {"x": x, "y": y},
@@ -341,14 +464,17 @@ class ScaleWoBAutomation:
         x = int(float(x) / self._screenshot_scale)
         y = int(float(y) / self._screenshot_scale)
 
-        delta_map = {
-            "left": (x - distance, y),
-            "right": (x + distance, y),
-            "up": (x, y - distance),
-            "down": (x, y + distance),
-        }
+        if self.platform == "mobile":
+            delta_map = {
+                "left": (x - distance, y),
+                "right": (x + distance, y),
+                "up": (x, y - distance),
+                "down": (x, y + distance),
+            }
+            self._execute_mobile_touch((x, y), delta_map[direction], move_duration=0.5)
+        else:
+            self._execute_desktop_scroll(x, y, direction, distance)
 
-        self._execute_mobile_touch((x, y), delta_map[direction], move_duration=0.5)
         self._record_trajectory(
             "scroll",
             {
@@ -363,11 +489,21 @@ class ScaleWoBAutomation:
         """
         Long press at coordinates (x, y).
 
+        Note: This is a mobile-specific gesture and will raise an error on desktop platform.
+
         Args:
             x: Horizontal coordinate
             y: Vertical coordinate
             duration: Duration of press in milliseconds
+
+        Raises:
+            CommandError: If called on desktop platform
         """
+        if self.platform == "desktop":
+            raise CommandError(
+                "long_press is not supported on desktop platform. Use click() instead."
+            )
+
         x = int(float(x) / self._screenshot_scale)
         y = int(float(y) / self._screenshot_scale)
         self._execute_mobile_touch((x, y), press_duration=duration / 1000)
@@ -400,7 +536,11 @@ class ScaleWoBAutomation:
         end_x = int(float(end_x) / self._screenshot_scale)
         end_y = int(float(end_y) / self._screenshot_scale)
 
-        self._execute_mobile_touch((x, y), (end_x, end_y))
+        if self.platform == "mobile":
+            self._execute_mobile_touch((x, y), (end_x, end_y))
+        else:
+            self._execute_desktop_drag(x, y, end_x, end_y)
+
         self._record_trajectory(
             "touch",
             {
