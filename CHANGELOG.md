@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.6.0 (2025-12-10)
+
+### Documentation
+
+- Add platform parameter documentation and mobile-specific behavior notes
+  ([`8d0c5cf`](https://github.com/ScaleWoB/ScaleWoB/commit/8d0c5cfd389aed5600568d62761d86e0c6327899))
+
+### Features
+
+- **automation**: Add platform-agnostic interaction support with mobile and desktop modes
+  ([`a3d06b1`](https://github.com/ScaleWoB/ScaleWoB/commit/a3d06b1cd1016f63f9d5a9007affccede275a190))
+
+
 ## v0.5.0 (2025-12-02)
 
 ### Documentation
