@@ -2,6 +2,35 @@
 
 <!-- version list -->
 
+## v0.7.0 (2025-12-16)
+
+### Chores
+
+- Add AI assistant documentation and beads issue tracking setup
+  ([`ccfbf9e`](https://github.com/ScaleWoB/ScaleWoB/commit/ccfbf9e5b70b9ec9616894816206c9b7b9494be9))
+
+- **.gitignore**: Add exceptions for CLAUDE.md and AGENTS.md
+  ([`1bf0d9b`](https://github.com/ScaleWoB/ScaleWoB/commit/1bf0d9bc49925216e7f196e788dc8c2e6e0a750c))
+
+- **beads**: Record closed issues from task-centric API migration
+  ([`14a372a`](https://github.com/ScaleWoB/ScaleWoB/commit/14a372a4fa82d21ab232148af4361c60a8e2146a))
+
+### Documentation
+
+- Update README for task-centric API migration
+  ([`eb2f284`](https://github.com/ScaleWoB/ScaleWoB/commit/eb2f28418dc71ec88969a9ded69d79f34f5273c7))
+
+### Features
+
+- Migrate to task-centric API with taskId support
+  ([`c4a71d4`](https://github.com/ScaleWoB/ScaleWoB/commit/c4a71d452abf26c1206315c1b81475df86652d6c))
+
+### Breaking Changes
+
+- Replace fetch_environments() with fetch_tasks() that returns a flat list of tasks with environment
+  context. Add task_id parameter to finish_evaluation() to support multiple tasks per environment.
+
+
 ## v0.6.0 (2025-12-10)
 
 ### Documentation
