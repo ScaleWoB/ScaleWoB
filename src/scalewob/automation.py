@@ -650,7 +650,7 @@ class ScaleWoBAutomation:
         self._sdk_evaluation_active = True
 
     def finish_evaluation(
-        self, params: Optional[Dict[str, Any]] = None
+        self, task_id: int = 0, params: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Finish evaluation and get results.
@@ -659,6 +659,8 @@ class ScaleWoBAutomation:
         The trajectory of all actions since start_evaluation() is automatically included.
 
         Args:
+            task_id: Task index within the environment (default: 0). Used to identify
+                which task in the environment's tasks array is being evaluated.
             params: Evaluation parameters (environment-specific, optional)
 
         Returns:
@@ -671,7 +673,7 @@ class ScaleWoBAutomation:
             TimeoutError: If evaluation times out
 
         Example:
-            >>> result = auto.finish_evaluation({'destination': 'New York'})
+            >>> result = auto.finish_evaluation(task_id=0, params={'destination': 'New York'})
             >>> if result['success']:
             ...     print("Task completed successfully!")
             ... else:
@@ -686,6 +688,7 @@ class ScaleWoBAutomation:
             # Merge trajectory into params
             eval_params = params or {}
             eval_params["trajectory"] = self._trajectory
+            eval_params["taskId"] = task_id
 
             result = self._execute_evaluate(eval_params, timeout=self.default_timeout)
             self._last_evaluation_result = result
