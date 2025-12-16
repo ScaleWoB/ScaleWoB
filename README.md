@@ -41,28 +41,32 @@ print(result)
 auto.close()
 ```
 
-## Discovering Environments
+## Discovering Tasks
 
-Fetch available environment metadata from the ScaleWoB registry:
+Fetch available tasks from the ScaleWoB registry as a flat list:
 
 ```python
-from scalewob import fetch_environments
+from scalewob import fetch_tasks
 
-# Get all available environments
-envs = fetch_environments()
-print(f"Found {len(envs)} environments")
+# Get all available tasks
+tasks = fetch_tasks()
+print(f"Found {len(tasks)} tasks")
 
 # Filter by difficulty
-expert_envs = fetch_environments(difficulty="Expert")
+expert_tasks = fetch_tasks(difficulty="Expert")
 
 # Filter by platform and tags
-time_selection_envs = fetch_environments(
+time_selection_tasks = fetch_tasks(
     platform="Mobile Interfaces",
     tags=["Time Selection"]
 )
+
+# Each task includes environment context
+for task in tasks[:3]:
+    print(f"[{task['env_id']}:{task['task_id']}] {task['description']}")
 ```
 
-See [Environment Discovery](#environment-discovery) in the API Reference for more details.
+See [Task Discovery](#task-discovery) in the API Reference for more details.
 
 ## Usage
 
@@ -118,11 +122,12 @@ Initialize Chrome browser and navigate to the environment page. Must be called b
 
 Start evaluation mode. Ensures the environment is fully initialized and clears the trajectory for a fresh evaluation. The environment loads ready to interact without requiring UI button clicks.
 
-#### `finish_evaluation(params=None)`
+#### `finish_evaluation(task_id=0, params=None)`
 
 Finish evaluation and get results.
 
 **Parameters:**
+- `task_id` (int, optional): Task index within the environment (default: 0). Used to identify which task in the environment's tasks array is being evaluated.
 - `params` (dict, optional): Evaluation parameters (environment-specific)
 
 **Returns:** Evaluation result dictionary
@@ -229,37 +234,57 @@ print(len(auto.get_trajectory()))  # 0
 
 Close browser and cleanup resources.
 
-### Environment Discovery
+### Task Discovery
 
-#### `fetch_environments(difficulty=None, platform=None, tags=None, force_refresh=False)`
+#### `fetch_tasks(difficulty=None, platform=None, tags=None, force_refresh=False)`
 
-Fetch environment metadata from ScaleWoB registry with optional filtering.
+Fetch all tasks from ScaleWoB registry as a flat list with optional filtering.
+
+Each task includes its environment context, making it easy to iterate through all available tasks without nested loops.
 
 **Parameters:**
 - `difficulty` (str, optional): Filter by difficulty level (e.g., "Basic", "Advanced", "Expert")
 - `platform` (str, optional): Filter by platform (e.g., "Mobile Interfaces")
-- `tags` (list, optional): Filter by tags (returns environments matching any tag)
+- `tags` (list, optional): Filter by tags (returns tasks from environments matching any tag)
 - `force_refresh` (bool): Bypass cache and fetch fresh data (default: False)
 
-**Returns:** List of environment metadata dictionaries
+**Returns:** List of task dictionaries, each containing:
+- `env_id`: Environment ID
+- `env_name`: Environment display name
+- `task_id`: Task index within the environment (for use with `finish_evaluation()`)
+- `task_name`: Task name (if available)
+- `description`: Task description/instruction
+- `difficulty`: Environment difficulty level
+- `platform`: Environment platform
+- `tags`: Environment tags
+- `params`: Task parameters (if any)
 
 **Raises:** `NetworkError` if fetching or parsing fails
 
 **Example:**
 ```python
-from scalewob import fetch_environments
+from scalewob import fetch_tasks, ScaleWoBAutomation
 
-# Get all environments
-all_envs = fetch_environments()
+# Get all tasks
+all_tasks = fetch_tasks()
 
 # Filter by multiple criteria
-filtered = fetch_environments(
+filtered = fetch_tasks(
     difficulty="Expert",
     platform="Mobile Interfaces"
 )
 
 # Force refresh cache
-fresh = fetch_environments(force_refresh=True)
+fresh = fetch_tasks(force_refresh=True)
+
+# Iterate through tasks and run evaluations
+for task in fetch_tasks(difficulty="Basic"):
+    auto = ScaleWoBAutomation(task['env_id'])
+    auto.start()
+    auto.start_evaluation()
+    # ... perform actions based on task['description'] ...
+    result = auto.finish_evaluation(task_id=task['task_id'])
+    auto.close()
 ```
 
 ## Exception Handling
