@@ -626,7 +626,7 @@ class ScaleWoBAutomation:
         time.sleep(1)  # Buffer for any initialization
 
         try:
-            state = self.driver.execute(
+            state = self.driver.execute_script(
                 """
         return {
             url: window.location.href,
