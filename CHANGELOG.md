@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.7.1 (2025-12-22)
+
+### Bug Fixes
+
+- **automation**: Use execute_script instead of execute for JavaScript execution
+  ([`4c83075`](https://github.com/ScaleWoB/ScaleWoB/commit/4c830750396e4b46e49369a764f93b0d4208021b))
+
+
 ## v0.7.0 (2025-12-16)
 
 ### Chores
