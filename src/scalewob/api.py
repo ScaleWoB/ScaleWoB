@@ -9,43 +9,36 @@ from .exceptions import NetworkError
 _cache: Dict[str, List[Dict[str, Any]]] = {}
 
 
-def fetch_tasks(
+def fetch_environments(
     difficulty: Optional[str] = None,
     platform: Optional[str] = None,
     tags: Optional[List[str]] = None,
     force_refresh: bool = False,
 ) -> List[Dict[str, Any]]:
     """
-    Fetch all tasks from ScaleWoB registry as a flat list.
-
-    Each task includes its environment context, making it easy to iterate
-    through all available tasks without nested loops.
+    Fetch environment metadata from ScaleWoB registry.
 
     Args:
         difficulty: Filter by difficulty level (e.g., "Basic", "Advanced", "Expert")
         platform: Filter by platform (e.g., "Mobile Interfaces")
-        tags: Filter by tags (returns tasks from environments matching any tag)
+        tags: Filter by tags (returns environments matching any tag)
         force_refresh: Bypass cache and fetch fresh data
 
     Returns:
-        List of task dictionaries, each containing:
-        - env_id: Environment ID
-        - env_name: Environment display name
-        - task_id: Task index within the environment (for use with finish_evaluation)
-        - task_name: Task name (if available)
-        - description: Task description/instruction
-        - difficulty: Environment difficulty level
-        - platform: Environment platform
-        - tags: Environment tags
-        - params: Task parameters (if any)
+        List of environment dictionaries, each containing:
+        - id: Environment ID
+        - name: Environment display name
+        - difficulty: Difficulty level
+        - platform: Platform type
+        - tags: List of tags
 
     Raises:
         NetworkError: If fetching or parsing fails
 
     Example:
-        >>> tasks = fetch_tasks(difficulty="Basic")
-        >>> for task in tasks:
-        ...     print(f"[{task['env_id']}:{task['task_id']}] {task['description']}")
+        >>> envs = fetch_environments(difficulty="Basic")
+        >>> for env in envs:
+        ...     print(f"[{env['id']}] {env['name']}")
     """
     url = "https://niumascript.com/scalewob-env/environments.json"
 
@@ -74,21 +67,4 @@ def fetch_tasks(
             e for e in environments if any(t in e.get("tags", []) for t in tags)
         ]
 
-    # Flatten into task list
-    tasks = []
-    for env in environments:
-        env_tasks = env.get("tasks", [])
-        for task_idx, task in enumerate(env_tasks):
-            tasks.append({
-                "env_id": env.get("id"),
-                "env_name": env.get("name"),
-                "task_id": task_idx,
-                "task_name": task.get("name"),
-                "description": task.get("description"),
-                "difficulty": env.get("difficulty"),
-                "platform": env.get("platform"),
-                "tags": env.get("tags", []),
-                "params": task.get("params"),
-            })
-
-    return tasks
+    return environments

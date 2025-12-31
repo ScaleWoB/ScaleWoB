@@ -17,13 +17,13 @@ Example:
     auto.type('New York')  # Type into focused element
 
     # Evaluate
-    result = auto.finish_evaluation({'destination': 'New York'})
+    result = auto.finish_evaluation(params={'destination': 'New York'})
     print(result)
 """
 
 from importlib.metadata import version as get_version
 
-from .api import fetch_tasks
+from .api import fetch_environments
 from .automation import ScaleWoBAutomation
 from .exceptions import (
     BrowserError,
@@ -37,7 +37,7 @@ from .exceptions import (
 __version__ = get_version(__package__)  # type: ignore
 __all__ = [
     "ScaleWoBAutomation",
-    "fetch_tasks",
+    "fetch_environments",
     "ScaleWoBError",
     "TimeoutError",
     "CommandError",

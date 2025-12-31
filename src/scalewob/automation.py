@@ -67,6 +67,7 @@ class ScaleWoBAutomation:
         self._trajectory: List[Dict[str, Any]] = []
         self.platform = platform
         self._screenshot_scale = 1.0 if screenshot_quality == "low" else 3.0
+        self._cached_tasks: Optional[List[Dict[str, Any]]] = None
 
     def __enter__(self):
         """
@@ -392,6 +393,10 @@ class ScaleWoBAutomation:
         # Wait for DOM to be ready
         self._wait_for_dom_ready(timeout=self.default_timeout)
 
+        # Clear cached tasks and fetch fresh ones
+        self._cached_tasks = None
+        self._fetch_tasks_internal()  # Auto-fetch tasks on start
+
     def _record_trajectory(self, action_type: str, data: Dict[str, Any]):
         """Record an action in the trajectory history."""
         trajectory_entry = {
@@ -649,8 +654,82 @@ class ScaleWoBAutomation:
         # Mark evaluation as active
         self._sdk_evaluation_active = True
 
+    @property
+    def tasks(self) -> List[Dict[str, Any]]:
+        """
+        Tasks available in the current environment.
+
+        Tasks are automatically fetched when `start()` is called and cached
+        for the lifetime of the browser session. Access this property to get
+        the list of available tasks.
+
+        Returns:
+            List of task dictionaries, each containing:
+            - task_id: Task identifier (from window.getTasks(), may be string or number)
+            - description: Task description
+            - params: Optional JSON schema defining expected parameters (if present,
+              you must provide actual values matching this schema when calling
+              finish_evaluation())
+
+        Raises:
+            BrowserError: If environment is not loaded (start() not called)
+            CommandError: If task fetching failed
+
+        Example:
+            >>> auto = ScaleWoBAutomation('booking-hotel-simple')
+            >>> auto.start()
+            >>> for idx, task in enumerate(auto.tasks):
+            ...     print(f"Task {idx}: {task['description']}")
+        """
+        if self._cached_tasks is None:
+            raise BrowserError(
+                "Tasks not available. Call start() first to load the environment."
+            )
+        return self._cached_tasks
+
+    def _fetch_tasks_internal(self) -> List[Dict[str, Any]]:
+        """
+        Internal method to fetch tasks from the currently loaded environment.
+
+        Called automatically by `start()`. Fetches tasks via window.getTasks()
+        and caches them for automatic validation in finish_evaluation().
+
+        Returns:
+            List of task dictionaries (cached in self._cached_tasks)
+
+        Raises:
+            CommandError: If JavaScript execution fails
+        """
+        assert self.driver is not None  # Guaranteed by caller (start method)
+
+        try:
+            # Call window.getTasks() and return result
+            tasks = self.driver.execute_script("return window.getTasks();")
+
+            if tasks is None:
+                self._cached_tasks = []
+                return []
+
+            # Normalize response format
+            normalized_tasks = []
+            for task in tasks:
+                normalized_tasks.append({
+                    "task_id": task.get("taskId"),  # May be string or number
+                    "description": task.get("task description", ""),
+                    "params": task.get("params"),  # Optional JSON schema
+                })
+
+            # Cache for automatic validation in finish_evaluation()
+            self._cached_tasks = normalized_tasks
+            return normalized_tasks
+
+        except Exception as e:
+            raise CommandError(f"Failed to fetch tasks: {str(e)}")
+
     def finish_evaluation(
-        self, task_id: int = 0, params: Optional[Dict[str, Any]] = None
+        self,
+        task_id: int = 0,
+        params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Finish evaluation and get results.
@@ -661,7 +740,9 @@ class ScaleWoBAutomation:
         Args:
             task_id: Task index within the environment (default: 0). Used to identify
                 which task in the environment's tasks array is being evaluated.
-            params: Evaluation parameters (environment-specific, optional)
+            params: Evaluation parameters (environment-specific, optional). If the task
+                requires parameters, they will be automatically validated against the
+                task's JSON schema.
 
         Returns:
             Evaluation result dictionary. Contains 'success' field indicating whether
@@ -671,9 +752,13 @@ class ScaleWoBAutomation:
         Raises:
             EvaluationError: If evaluation not started or environment communication fails
             TimeoutError: If evaluation times out
+            CommandError: If params don't match the task's required schema
 
         Example:
-            >>> result = auto.finish_evaluation(task_id=0, params={'destination': 'New York'})
+            >>> result = auto.finish_evaluation(
+            ...     task_id=0,
+            ...     params={'destination': 'New York'}
+            ... )
             >>> if result['success']:
             ...     print("Task completed successfully!")
             ... else:
@@ -683,6 +768,33 @@ class ScaleWoBAutomation:
             raise EvaluationError(
                 "Evaluation not started. Call start_evaluation() first."
             )
+
+        # Auto-validate params against task schema if available
+        if self._cached_tasks is not None:
+            # Find task by task_id
+            task = None
+            for t in self._cached_tasks:
+                if t["task_id"] == task_id:
+                    task = t
+                    break
+
+            if task is not None and task.get("params") is not None:
+                # Task has a params schema - validate against it
+                try:
+                    from jsonschema import ValidationError, validate
+                except ImportError:
+                    raise CommandError(
+                        "jsonschema package is required for param validation. "
+                        "Install it with: pip install jsonschema"
+                    )
+
+                try:
+                    validate(instance=params or {}, schema=task["params"])
+                except ValidationError as e:
+                    raise CommandError(
+                        f"Params validation failed for task '{task_id}': {e.message} "
+                        f"(at path: {' -> '.join(str(p) for p in e.absolute_path)})"
+                    )
 
         try:
             # Merge trajectory into params
