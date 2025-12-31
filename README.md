@@ -41,34 +41,30 @@ mobile_envs = fetch_environments(
 
 # Step 2: For each environment, load it and work with its tasks
 for env in basic_envs:
-    auto = ScaleWoBAutomation(env_id=env['id'])
-    auto.start()  # Tasks are automatically fetched here
+    with ScaleWoBAutomation(env_id=env['id']) as auto:  # the browser will show up
+        # Access tasks via the tasks property
+        print(f"Environment {env['name']} has {len(auto.tasks)} tasks")
 
-    # Access tasks via the tasks property
-    print(f"Environment {env['name']} has {len(auto.tasks)} tasks")
+        # Work with each task
+        for idx, task in enumerate(auto.tasks):
+            auto.start_evaluation()
+            # ... perform actions based on task['description'] ...
 
-    # Work with each task
-    for idx, task in enumerate(auto.tasks):
-        auto.start_evaluation()
-        # ... perform actions based on task['description'] ...
-
-        # The task's params field (if present) is a JSON schema
-        # You need to provide actual parameter values that match this schema
-        if task.get('params'):
-            # Example: provide actual values matching the schema
-            # Validation is automatic when you call finish_evaluation
-            actual_params = {
-                "destination": "New York",
-                "check_in": "2024-01-15"
-            }
-            result = auto.finish_evaluation(
-                task_id=task['task_id'],
-                params=actual_params  # Auto-validated against task['params']
-            )
-        else:
-            result = auto.finish_evaluation(task_id=task['task_id'])
-
-    auto.close()
+            # The task's params field (if present) is a JSON schema
+            # You need to provide actual parameter values that match this schema
+            if task.get('params'):
+                # Example: provide actual values matching the schema
+                # Validation is automatic when you call finish_evaluation
+                actual_params = {
+                    "destination": "New York",
+                    "check_in": "2024-01-15"
+                }
+                result = auto.finish_evaluation(
+                    task_id=task['task_id'],
+                    params=actual_params  # Auto-validated against task['params']
+                )
+            else:
+                result = auto.finish_evaluation(task_id=task['task_id'])
 ```
 
 See [Environment Discovery](#environment-discovery) and [ScaleWoBAutomation Methods](#scalewobautomation-methods) in the API Reference for more details.

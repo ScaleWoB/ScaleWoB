@@ -32,19 +32,26 @@ class ScaleWoBAutomation:
         Desktop mode uses standard browser window (1280x800) with mouse interactions.
 
     Example:
-        >>> # Mobile mode (default)
+        >>> # Using context manager (recommended)
+        >>> with ScaleWoBAutomation('booking-hotel-simple') as auto:
+        ...     auto.start_evaluation()
+        ...     auto.click(x=300, y=150)  # Click at coordinates
+        ...     auto.type('New York')  # Type into focused element
+        ...     result = auto.finish_evaluation({'destination': 'New York'})
+        >>>
+        >>> # Manual start/stop
         >>> auto = ScaleWoBAutomation(env_id='booking-hotel-simple')
         >>> auto.start()
         >>> auto.start_evaluation()
-        >>> auto.click(x=300, y=150)  # Click at coordinates
-        >>> auto.type('New York')  # Type into focused element
+        >>> auto.click(x=300, y=150)
+        >>> auto.type('New York')
         >>> result = auto.finish_evaluation({'destination': 'New York'})
+        >>> auto.close()
         >>>
         >>> # Desktop mode
-        >>> auto = ScaleWoBAutomation(env_id='booking-hotel-simple', platform='desktop')
-        >>> auto.start()
-        >>> auto.start_evaluation()
-        >>> auto.click(x=640, y=400)  # Click at coordinates
+        >>> with ScaleWoBAutomation('booking-hotel-simple', platform='desktop') as auto:
+        ...     auto.start_evaluation()
+        ...     auto.click(x=640, y=400)  # Click at coordinates
     """
 
     def __init__(
@@ -73,9 +80,13 @@ class ScaleWoBAutomation:
         """
         Context manager entry.
 
+        Initializes the browser and navigates to the environment.
+        Equivalent to calling start() manually.
+
         Returns:
             self: The ScaleWoBAutomation instance for use in the with statement
         """
+        self.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -379,6 +390,10 @@ class ScaleWoBAutomation:
 
         This method must be called before any other automation methods.
         Waits for DOM to be fully loaded and interactive.
+
+        Note:
+            When using the context manager (with statement), this method is
+            automatically called by __enter__, so you don't need to call it manually.
         """
         # Initialize Selenium driver
         self._init_driver()
@@ -614,6 +629,9 @@ class ScaleWoBAutomation:
         for a fresh evaluation. The environment loads ready to interact without
         requiring any UI button clicks.
 
+        This method calls window.reset() to restore the environment to its initial
+        state, allowing multiple evaluations to be run in the same browser session.
+
         Raises:
             EvaluationError: If evaluation is already active or environment not ready
             BrowserError: If browser not initialized (call start() first)
@@ -627,8 +645,11 @@ class ScaleWoBAutomation:
         # Clear trajectory for fresh start
         self._trajectory = []
 
-        # Verify environment is ready (start() already waited for DOM)
-        time.sleep(1)  # Buffer for any initialization
+        # Reset environment to initial state
+        self.driver.execute_script("window.reset();")
+
+        # Wait for environment to stabilize after reset
+        time.sleep(1)  # Buffer for reset and initialization
 
         try:
             state = self.driver.execute_script(
