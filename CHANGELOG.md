@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.8.1 (2025-12-31)
+
+### Refactoring
+
+- Improve context manager support and environment reset
+  ([`bdaa7f8`](https://github.com/ScaleWoB/ScaleWoB/commit/bdaa7f811d3183cfe4e0111d0be37ee7df0e5d4f))
+
+
 ## v0.8.0 (2025-12-31)
 
 ### Chores
