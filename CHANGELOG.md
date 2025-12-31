@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v0.8.0 (2025-12-31)
+
+### Chores
+
+- Add jsonschema dependency and update lock file
+  ([`ef0cf29`](https://github.com/ScaleWoB/ScaleWoB/commit/ef0cf2930c3bd71099a72015e7c933c115ea5d62))
+
+- Update beads issue tracking for completed tasks
+  ([`ef0cf29`](https://github.com/ScaleWoB/ScaleWoB/commit/ef0cf2930c3bd71099a72015e7c933c115ea5d62))
+
+### Documentation
+
+- Reorganize README and update API documentation
+  ([`ef0cf29`](https://github.com/ScaleWoB/ScaleWoB/commit/ef0cf2930c3bd71099a72015e7c933c115ea5d62))
+
+### Features
+
+- Add automatic task fetching and parameter validation
+  ([`314201a`](https://github.com/ScaleWoB/ScaleWoB/commit/314201af8ba080c0da002f230ad2a492ce2e7db8))
+
+### Breaking Changes
+
+- Finish_evaluation() now automatically validates params against task schema when available.
+  Requires jsonschema package for validation (raises CommandError if not installed).
+
+
 ## v0.7.1 (2025-12-22)
 
 ### Bug Fixes
