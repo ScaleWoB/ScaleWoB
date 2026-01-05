@@ -747,6 +747,152 @@ class ScaleWoBAutomation:
         except Exception as e:
             raise CommandError(f"Failed to fetch tasks: {str(e)}")
 
+    def _extract_const_values(
+        self, schema: Dict[str, Any], path: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Extract all const values from a JSON Schema.
+
+        Recursively traverses the schema to find all properties with const keyword,
+        handling nested objects, oneOf, anyOf, allOf, and arrays.
+
+        Args:
+            schema: JSON Schema dictionary to extract const values from
+            path: Current JSON path (for error reporting and nested const tracking)
+
+        Returns:
+            Dictionary mapping JSON paths to their const values
+
+        Raises:
+            CommandError: If conflicting const values found at same path
+
+        Example:
+            >>> schema = {
+            ...     "type": "object",
+            ...     "properties": {
+            ...         "userId": {"const": 123},
+            ...         "config": {
+            ...             "type": "object",
+            ...             "properties": {
+            ...                 "mode": {"const": "advanced"}
+            ...             }
+            ...         }
+            ...     }
+            ... }
+            >>> auto._extract_const_values(schema)
+            {'userId': 123, 'config.mode': 'advanced'}
+        """
+        result = {}
+
+        # Direct const field at current path
+        if "const" in schema:
+            const_value = schema["const"]
+            if path in result:
+                # Conflicting const values at same path
+                if result[path] != const_value:
+                    raise CommandError(
+                        f"Conflicting const values at '{path}': "
+                        f"{result[path]!r} vs {const_value!r}"
+                    )
+            else:
+                result[path] = const_value
+
+        # Nested objects in properties
+        if "properties" in schema:
+            for prop_name, prop_schema in schema["properties"].items():
+                new_path = f"{path}.{prop_name}" if path else prop_name
+                result.update(self._extract_const_values(prop_schema, new_path))
+
+        # oneOf/anyOf/allOf - extract from all subschemas
+        for keyword in ["oneOf", "anyOf", "allOf"]:
+            if keyword in schema:
+                for subschema in schema[keyword]:
+                    result.update(self._extract_const_values(subschema, path))
+
+        # Arrays - extract from items schema
+        if "items" in schema and isinstance(schema["items"], dict):
+            result.update(self._extract_const_values(schema["items"], path))
+
+        return result
+
+    def _get_nested_value(self, data: Dict[str, Any], path: str) -> Any:
+        """
+        Navigate a nested dictionary using dot-notation path.
+
+        Args:
+            data: Dictionary to navigate
+            path: Dot-notation path (e.g., "config.mode")
+
+        Returns:
+            Value at path, or None if path doesn't exist
+
+        Example:
+            >>> data = {"config": {"mode": "advanced"}}
+            >>> auto._get_nested_value(data, "config.mode")
+            'advanced'
+            >>> auto._get_nested_value(data, "config.missing")
+            None
+        """
+        keys = path.split(".")
+        current = data
+
+        for key in keys:
+            if isinstance(current, dict) and key in current:
+                current = current[key]
+            else:
+                return None
+
+        return current
+
+    def _merge_const_values(
+        self, params: Dict[str, Any], const_values: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Merge const values into params, only if not already present.
+
+        Converts dot-notation paths in const_values to nested structure
+        and merges them into params.
+
+        Args:
+            params: User-provided parameters
+            const_values: Const values with dot-notation paths
+
+        Returns:
+            New dictionary with merged params and const values
+
+        Example:
+            >>> params = {"destination": "New York"}
+            >>> const_values = {"userId": 123, "config.mode": "advanced"}
+            >>> auto._merge_const_values(params, const_values)
+            {'destination': 'New York', 'userId': 123, 'config': {'mode': 'advanced'}}
+        """
+        import copy
+
+        result = copy.deepcopy(params)
+
+        for const_path, const_value in const_values.items():
+            # Check if user already provided this value
+            if self._get_nested_value(params, const_path) is not None:
+                # User provided it, skip auto-injection
+                continue
+
+            # Build nested structure from dot-notation path
+            keys = const_path.split(".")
+            current = result
+
+            for key in keys[:-1]:
+                if key not in current:
+                    current[key] = {}
+                elif not isinstance(current[key], dict):
+                    # User provided a non-dict value at intermediate path
+                    break
+                current = current[key]
+
+            # Set the final value
+            current[keys[-1]] = const_value
+
+        return result
+
     def finish_evaluation(
         self,
         task_id: int = 0,
@@ -761,9 +907,10 @@ class ScaleWoBAutomation:
         Args:
             task_id: Task index within the environment (default: 0). Used to identify
                 which task in the environment's tasks array is being evaluated.
-            params: Evaluation parameters (environment-specific, optional). If the task
-                requires parameters, they will be automatically validated against the
-                task's JSON schema.
+            params: Evaluation parameters (environment-specific, optional). Const fields
+                from the task's JSON schema are automatically injected and don't need to
+                be included. If the task requires parameters, they will be automatically
+                validated against the task's JSON schema.
 
         Returns:
             Evaluation result dictionary. Contains 'success' field indicating whether
@@ -773,7 +920,8 @@ class ScaleWoBAutomation:
         Raises:
             EvaluationError: If evaluation not started or environment communication fails
             TimeoutError: If evaluation times out
-            CommandError: If params don't match the task's required schema
+            CommandError: If params don't match the task's required schema, or if
+                attempting to override a const field with a different value
 
         Example:
             >>> result = auto.finish_evaluation(
@@ -800,7 +948,7 @@ class ScaleWoBAutomation:
                     break
 
             if task is not None and task.get("params") is not None:
-                # Task has a params schema - validate against it
+                # Task has a params schema
                 try:
                     from jsonschema import ValidationError, validate
                 except ImportError:
@@ -809,13 +957,32 @@ class ScaleWoBAutomation:
                         "Install it with: pip install jsonschema"
                     )
 
+                # Extract const values from schema
+                const_values = self._extract_const_values(task["params"])
+
+                # Validate user doesn't override const with different value
+                for const_path, const_value in const_values.items():
+                    user_value = self._get_nested_value(params or {}, const_path)
+                    if user_value is not None and user_value != const_value:
+                        raise CommandError(
+                            f"Cannot override const field '{const_path}': "
+                            f"schema requires {const_value!r}, got {user_value!r}"
+                        )
+
+                # Merge const values into user params
+                merged_params = self._merge_const_values(params or {}, const_values)
+
+                # Validate merged params against schema
                 try:
-                    validate(instance=params or {}, schema=task["params"])
+                    validate(instance=merged_params, schema=task["params"])
                 except ValidationError as e:
                     raise CommandError(
                         f"Params validation failed for task '{task_id}': {e.message} "
                         f"(at path: {' -> '.join(str(p) for p in e.absolute_path)})"
                     )
+
+                # Use merged params for evaluation
+                params = merged_params
 
         try:
             # Merge trajectory into params

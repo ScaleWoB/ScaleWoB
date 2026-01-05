@@ -67,6 +67,30 @@ for env in basic_envs:
                 result = auto.finish_evaluation(task_id=task['task_id'])
 ```
 
+### Const Field Auto-Injection
+
+If a task's parameter schema includes fields with `const` values, these are automatically injected by the SDK and **don't need to be included** in your params:
+
+```python
+# Task schema with const field:
+# {
+#   "type": "object",
+#   "properties": {
+#     "destination": {"type": "string"},
+#     "userId": {"const": 123}  # Auto-injected!
+#   },
+#   "required": ["destination", "userId"]
+# }
+
+# You only need to provide non-const fields:
+result = auto.finish_evaluation(
+    task_id=0,
+    params={"destination": "New York"}  # userId auto-injected from schema
+)
+```
+
+**Important:** If you try to override a const field with a different value, the SDK will raise a `CommandError`. Const fields are truly immutable.
+
 See [Environment Discovery](#environment-discovery) and [ScaleWoBAutomation Methods](#scalewobautomation-methods) in the API Reference for more details.
 
 ## Development
