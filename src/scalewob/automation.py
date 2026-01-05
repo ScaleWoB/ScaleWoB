@@ -202,6 +202,17 @@ class ScaleWoBAutomation:
         except Exception as e:
             raise TimeoutError(f"DOM not ready within {timeout}ms: {str(e)}")
 
+    def _get_viewport_dimensions(self) -> tuple[int, int]:
+        """Get the current viewport dimensions from the browser."""
+        assert self.driver is not None
+        width = self.driver.execute_script("return window.innerWidth;")
+        height = self.driver.execute_script("return window.innerHeight;")
+        return int(width), int(height)
+
+    def _clamp_coordinate(self, value: int, max_value: int) -> int:
+        """Clamp a coordinate to be within valid bounds."""
+        return max(0, min(value, max_value - 1))
+
     def _execute_mobile_touch(
         self,
         start_point: tuple[int, int],
@@ -227,38 +238,37 @@ class ScaleWoBAutomation:
         assert self.driver is not None
 
         start_x, start_y = start_point
+        viewport_width, viewport_height = self._get_viewport_dimensions()
 
-        # If no end_point specified, use start_point (tap/long_press)
+        start_x, start_y = (
+            self._clamp_coordinate(start_x, viewport_width),
+            self._clamp_coordinate(start_y, viewport_height),
+        )
+
         if end_point is None:
             end_x, end_y = start_x, start_y
         else:
             end_x, end_y = end_point
+            end_x, end_y = (
+                self._clamp_coordinate(end_x, viewport_width),
+                self._clamp_coordinate(end_y, viewport_height),
+            )
 
-        from selenium.common.exceptions import MoveTargetOutOfBoundsException
         from selenium.webdriver.common.actions import interaction
         from selenium.webdriver.common.actions.action_builder import ActionBuilder
         from selenium.webdriver.common.actions.pointer_input import PointerInput
 
-        try:
-            pointer = PointerInput(interaction.POINTER_TOUCH, "finger")
-            actions = ActionBuilder(self.driver, mouse=pointer)
+        pointer = PointerInput(interaction.POINTER_TOUCH, "finger")
+        actions = ActionBuilder(self.driver, mouse=pointer)
 
-            actions.pointer_action.move_to_location(start_x, start_y)
-            actions.pointer_action.pointer_down()
-            actions.pointer_action.pause(press_duration)
-            actions.pointer_action.move_to_location(end_x, end_y)
-            actions.pointer_action.pause(move_duration)
-            actions.pointer_action.pointer_up()
+        actions.pointer_action.move_to_location(start_x, start_y)
+        actions.pointer_action.pointer_down()
+        actions.pointer_action.pause(press_duration)
+        actions.pointer_action.move_to_location(end_x, end_y)
+        actions.pointer_action.pause(move_duration)
+        actions.pointer_action.pointer_up()
 
-            actions.perform()
-
-        except MoveTargetOutOfBoundsException as e:
-            raise CommandError(
-                f"Coordinates ({start_x}, {start_y}) or ({end_x}, {end_y}) is out of view port: {e}"
-            )
-
-        except Exception as e:
-            raise CommandError(e)
+        actions.perform()
 
     def _execute_desktop_click(self, x: int, y: int):
         """
@@ -270,16 +280,16 @@ class ScaleWoBAutomation:
         """
         assert self.driver is not None
 
-        from selenium.common.exceptions import MoveTargetOutOfBoundsException
+        viewport_width, viewport_height = self._get_viewport_dimensions()
+        x = self._clamp_coordinate(x, viewport_width)
+        y = self._clamp_coordinate(y, viewport_height)
+
         from selenium.webdriver.common.action_chains import ActionChains
 
         try:
             actions = ActionChains(self.driver)
             actions.move_by_offset(x, y).click().perform()
-            # Reset mouse position for next action
             actions.move_by_offset(-x, -y).perform()
-        except MoveTargetOutOfBoundsException as e:
-            raise CommandError(f"Coordinates ({x}, {y}) is out of viewport: {e}")
         except Exception as e:
             raise CommandError(e)
 
@@ -318,20 +328,19 @@ class ScaleWoBAutomation:
         """
         assert self.driver is not None
 
-        from selenium.common.exceptions import MoveTargetOutOfBoundsException
+        viewport_width, viewport_height = self._get_viewport_dimensions()
+        x = self._clamp_coordinate(x, viewport_width)
+        y = self._clamp_coordinate(y, viewport_height)
+        end_x = self._clamp_coordinate(end_x, viewport_width)
+        end_y = self._clamp_coordinate(end_y, viewport_height)
+
         from selenium.webdriver.common.action_chains import ActionChains
 
         try:
             actions = ActionChains(self.driver)
-            # Move to start position, press, drag to end, release
             actions.move_by_offset(x, y).click_and_hold()
             actions.move_by_offset(end_x - x, end_y - y).release().perform()
-            # Reset mouse position
             actions.move_by_offset(-end_x, -end_y).perform()
-        except MoveTargetOutOfBoundsException as e:
-            raise CommandError(
-                f"Coordinates ({x}, {y}) or ({end_x}, {end_y}) is out of viewport: {e}"
-            )
         except Exception as e:
             raise CommandError(e)
 
