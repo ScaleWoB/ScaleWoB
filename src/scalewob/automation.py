@@ -4,7 +4,9 @@ Core automation class for ScaleWoB environments
 
 import json
 import time
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, overload
+
+from PIL.Image import Image
 
 from .exceptions import BrowserError, CommandError, EvaluationError, TimeoutError
 
@@ -75,6 +77,7 @@ class ScaleWoBAutomation:
         self.platform = platform
         self._screenshot_scale = 1.0 if screenshot_quality == "low" else 3.0
         self._cached_tasks: Optional[List[Dict[str, Any]]] = None
+        self._cached_original_schemas: Dict[Any, Dict[str, Any]] = {}
 
     def __enter__(self):
         """
@@ -410,6 +413,7 @@ class ScaleWoBAutomation:
 
         # Clear cached tasks and fetch fresh ones
         self._cached_tasks = None
+        self._cached_original_schemas.clear()
         self._fetch_tasks_internal()  # Auto-fetch tasks on start
 
     def _record_trajectory(self, action_type: str, data: Dict[str, Any]):
@@ -580,7 +584,13 @@ class ScaleWoBAutomation:
         self.driver.back()
         self._record_trajectory("back", {})
 
-    def take_screenshot(self, format: str = "base64") -> Any:
+    @overload
+    def take_screenshot(self, format: Literal["base64"]) -> str: ...
+
+    @overload
+    def take_screenshot(self, format: Literal["pil"]) -> Image: ...
+
+    def take_screenshot(self, format: str = "base64") -> str | Image:
         """
         Capture screenshot of environment.
 
@@ -734,13 +744,32 @@ class ScaleWoBAutomation:
             # Normalize response format
             normalized_tasks = []
             for task in tasks:
+                task_id = task.get("taskId")  # May be string or number
+                original_schema = task.get("params")  # Optional JSON schema
+
+                # Store original schema for const extraction in finish_evaluation()
+                if original_schema is not None:
+                    self._cached_original_schemas[task_id] = original_schema
+
+                # Remove const fields from schema for user display
+                cleaned_schema = None
+                if original_schema is not None:
+                    cleaned_schema = self._remove_const_fields(original_schema)
+
+                    # If no properties left, remove params entirely
+                    if (
+                        not cleaned_schema.get("properties")
+                        or len(cleaned_schema.get("properties", {})) == 0
+                    ):
+                        cleaned_schema = None
+
                 normalized_tasks.append({
-                    "task_id": task.get("taskId"),  # May be string or number
+                    "task_id": task_id,
                     "description": task.get("task description", ""),
-                    "params": task.get("params"),  # Optional JSON schema
+                    "params": cleaned_schema,  # Schema with const fields removed, or None
                 })
 
-            # Cache for automatic validation in finish_evaluation()
+            # Cache for user access (const fields removed)
             self._cached_tasks = normalized_tasks
             return normalized_tasks
 
@@ -893,6 +922,73 @@ class ScaleWoBAutomation:
 
         return result
 
+    def _remove_const_fields(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Remove const fields from a JSON Schema.
+
+        Recursively traverses the schema and removes any properties or subschemas
+        that have const values, creating a simplified schema for user display.
+
+        Args:
+            schema: JSON Schema dictionary to remove const fields from
+
+        Returns:
+            Modified schema with const fields removed
+
+        Example:
+            >>> schema = {
+            ...     "type": "object",
+            ...     "properties": {
+            ...         "destination": {"type": "string"},
+            ...         "userId": {"const": 123}
+            ...     }
+            ... }
+            >>> auto._remove_const_fields(schema)
+            {'type': 'object', 'properties': {'destination': {'type': 'string'}}}
+        """
+        import copy
+
+        result = copy.deepcopy(schema)
+
+        # Track which properties were removed (had const)
+        removed_props = []
+
+        # Process nested objects in properties
+        if "properties" in result:
+            for prop_name, prop_schema in list(result["properties"].items()):
+                # If property has const, remove the entire property
+                if "const" in prop_schema:
+                    del result["properties"][prop_name]
+                    removed_props.append(prop_name)
+                else:
+                    # Recursively clean nested properties
+                    result["properties"][prop_name] = self._remove_const_fields(
+                        prop_schema
+                    )
+
+            # Clean up required list - remove const fields
+            if "required" in result and removed_props:
+                result["required"] = [
+                    field for field in result["required"] if field not in removed_props
+                ]
+                # If no required fields left, remove the key
+                if not result["required"]:
+                    del result["required"]
+
+        # Process oneOf/anyOf/allOf
+        for keyword in ["oneOf", "anyOf", "allOf"]:
+            if keyword in result:
+                result[keyword] = [
+                    self._remove_const_fields(subschema)
+                    for subschema in result[keyword]
+                ]
+
+        # Process arrays
+        if "items" in schema and isinstance(schema["items"], dict):
+            result["items"] = self._remove_const_fields(schema["items"])
+
+        return result
+
     def finish_evaluation(
         self,
         task_id: int = 0,
@@ -947,6 +1043,9 @@ class ScaleWoBAutomation:
                     task = t
                     break
 
+            # Get original schema (with const fields) for const extraction
+            original_schema = self._cached_original_schemas.get(task_id)
+
             if task is not None and task.get("params") is not None:
                 # Task has a params schema
                 try:
@@ -957,8 +1056,10 @@ class ScaleWoBAutomation:
                         "Install it with: pip install jsonschema"
                     )
 
-                # Extract const values from schema
-                const_values = self._extract_const_values(task["params"])
+                # Extract const values from original schema
+                const_values = {}
+                if original_schema is not None:
+                    const_values = self._extract_const_values(original_schema)
 
                 # Validate user doesn't override const with different value
                 for const_path, const_value in const_values.items():
@@ -972,7 +1073,7 @@ class ScaleWoBAutomation:
                 # Merge const values into user params
                 merged_params = self._merge_const_values(params or {}, const_values)
 
-                # Validate merged params against schema
+                # Validate merged params against cleaned schema (without const fields)
                 try:
                     validate(instance=merged_params, schema=task["params"])
                 except ValidationError as e:
