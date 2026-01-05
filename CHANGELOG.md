@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.9.1 (2026-01-05)
+
+### Refactoring
+
+- **automation**: Add coordinate clamping to prevent MoveTargetOutOfBoundsException
+  ([`fd47107`](https://github.com/ScaleWoB/ScaleWoB/commit/fd47107650bbd48e482bb1030eda89388d1a9d96))
+
+
 ## v0.9.0 (2026-01-05)
 
 ### Features
