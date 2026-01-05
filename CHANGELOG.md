@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.9.0 (2026-01-05)
+
+### Features
+
+- Enhance const field auto-injection to completely hide const fields
+  ([`dfef252`](https://github.com/ScaleWoB/ScaleWoB/commit/dfef252c075b915bdac6e4c1f671498f0d960ac7))
+
+- **automation**: Add const field auto-injection for task parameters
+  ([`0a293d6`](https://github.com/ScaleWoB/ScaleWoB/commit/0a293d628a95c96ea67c89bd2f17a68f8f60e716))
+
+
 ## v0.8.1 (2025-12-31)
 
 ### Refactoring
