@@ -617,6 +617,12 @@ class ScaleWoBAutomation:
         if not self.driver:
             raise ValueError("self.driver not initialized")
 
+        # Dismiss any open dialogs first
+        try:
+            self.driver.switch_to.alert.dismiss()
+        except Exception:
+            pass  # No alert present
+
         from selenium.webdriver.support.ui import WebDriverWait
 
         # Ensure page is ready
