@@ -4,6 +4,7 @@
 !CLAUDE.md
 !AGENTS.md
 *.ipynb
+.serena/
 
 ## macOS ignore patterns
 # General
