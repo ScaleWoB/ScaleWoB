@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.9.2 (2026-01-13)
+
+### Bug Fixes
+
+- **automation**: Dismiss alerts before taking screenshots
+  ([`1b79e80`](https://github.com/ScaleWoB/ScaleWoB/commit/1b79e80448f44459767761dbd4b1f8131d4cf878))
+
+### Build System
+
+- Update dependencies and add .serena/ to gitignore
+  ([`d58fd2b`](https://github.com/ScaleWoB/ScaleWoB/commit/d58fd2b6604197694fc190580fb1aedc5f075d0f))
+
+### Chores
+
+- Remove beads issue tracking configuration
+  ([`afb7812`](https://github.com/ScaleWoB/ScaleWoB/commit/afb781228b17cf421d47ddc86bd1c0c7c817970c))
+
+
 ## v0.9.1 (2026-01-05)
 
 ### Refactoring
