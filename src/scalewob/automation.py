@@ -786,6 +786,8 @@ class ScaleWoBAutomation:
                     if (
                         not cleaned_schema.get("properties")
                         or len(cleaned_schema.get("properties", {})) == 0
+                        or not cleaned_schema.get("required")
+                        or len(cleaned_schema.get("required", [])) == 0
                     ):
                         cleaned_schema = None
 
