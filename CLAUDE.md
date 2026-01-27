@@ -2,8 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
-
 ## Project Overview
 
 ScaleWoB is a Python SDK for evaluating Computer-Use Agents through browser automation. It provides coordinate-based interaction with web environments using Selenium WebDriver, supporting both mobile (iPhone emulation) and desktop platforms.
@@ -143,12 +141,3 @@ This project uses conventional commits and semantic-release:
 - Other types: `build`, `chore`, `ci`, `docs`, `style`, `test`
 
 Version is stored in `pyproject.toml:project.version` and auto-updated on release.
-
-## Beads Workflow
-
-This project uses Beads for issue tracking. Before starting work, run:
-```bash
-bd onboard  # Follow onboarding instructions
-```
-
-See `.beads/README.md` for full workflow details.

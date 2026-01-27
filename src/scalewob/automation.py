@@ -494,6 +494,9 @@ class ScaleWoBAutomation:
             direction: Scroll direction ('up', 'down', 'left', 'right')
             distance: Distance to scroll in pixels
         """
+        if direction not in ("up", "down", "left", "right"):
+            raise CommandError(f"Invalid scroll direction: {direction}")
+
         x = int(float(x) / self._screenshot_scale)
         y = int(float(y) / self._screenshot_scale)
 
