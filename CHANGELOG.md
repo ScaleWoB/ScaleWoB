@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.10.0 (2026-01-27)
+
+### Chores
+
+- Remove beads issue tracking and add DeepWiki integration
+  ([`3d80656`](https://github.com/ScaleWoB/ScaleWoB/commit/3d806569675141385e3a300415100830cf240f69))
+
+### Features
+
+- **automation**: Enable CDP touch emulation for mobile platform
+  ([`fd5127b`](https://github.com/ScaleWoB/ScaleWoB/commit/fd5127b752dc5af0ade53e97382ac31990bda9b4))
+
+
 ## v0.9.2 (2026-01-13)
 
 ### Bug Fixes
