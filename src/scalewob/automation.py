@@ -163,6 +163,14 @@ class ScaleWoBAutomation:
 
         self.driver = webdriver.Chrome(options=options)
 
+        if self.platform == "mobile":
+            self.driver.execute_cdp_cmd(
+                "Emulation.setTouchEmulationEnabled", {"enabled": True}
+            )
+            self.driver.execute_cdp_cmd(
+                "Emulation.setEmitTouchEventsForMouse", {"enabled": True}
+            )
+
         # For desktop, ensure window is properly sized after creation
         if self.platform == "desktop":
             self.driver.set_window_size(
