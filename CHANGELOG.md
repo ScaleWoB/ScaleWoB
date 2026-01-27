@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.10.1 (2026-01-27)
+
+### Bug Fixes
+
+- **automation**: Validate required fields in evaluation schema cleaning
+  ([`8c7fc8d`](https://github.com/ScaleWoB/ScaleWoB/commit/8c7fc8dff0ddd1ab2b65fae5738ba45a56df89a2))
+
+
 ## v0.10.0 (2026-01-27)
 
 ### Chores
