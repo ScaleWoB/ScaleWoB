@@ -793,7 +793,7 @@ class ScaleWoBAutomation:
 
                 normalized_tasks.append({
                     "task_id": task_id,
-                    "description": task.get("task description", ""),
+                    "description": task.get("task", ""),
                     "params": cleaned_schema,  # Schema with const fields removed, or None
                 })
 
