@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.10.2 (2026-01-28)
+
+### Bug Fixes
+
+- **automation**: Correct task description field name in evaluation schema
+  ([`84289fe`](https://github.com/ScaleWoB/ScaleWoB/commit/84289fe211d3a9c912bd55f9ec10160e7fcfc6cf))
+
+
 ## v0.10.1 (2026-01-27)
 
 ### Bug Fixes
