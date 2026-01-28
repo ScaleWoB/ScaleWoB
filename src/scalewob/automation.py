@@ -1074,7 +1074,7 @@ class ScaleWoBAutomation:
             # Get original schema (with const fields) for const extraction
             original_schema = self._cached_original_schemas.get(task_id)
 
-            if task is not None and task.get("params") is not None:
+            if task is not None and original_schema is not None:
                 # Task has a params schema
                 try:
                     from jsonschema import ValidationError, validate
@@ -1103,7 +1103,7 @@ class ScaleWoBAutomation:
 
                 # Validate merged params against cleaned schema (without const fields)
                 try:
-                    validate(instance=merged_params, schema=task["params"])
+                    validate(instance=merged_params, schema=original_schema)
                 except ValidationError as e:
                     raise CommandError(
                         f"Params validation failed for task '{task_id}': {e.message} "
