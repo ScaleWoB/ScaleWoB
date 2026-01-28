@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.10.3 (2026-01-28)
+
+### Bug Fixes
+
+- **automation**: Use original schema for params validation in finish_evaluation
+  ([`29e316d`](https://github.com/ScaleWoB/ScaleWoB/commit/29e316dcf3d9c79e0b8af31a8651eb854cc39103))
+
+
 ## v0.10.2 (2026-01-28)
 
 ### Bug Fixes
