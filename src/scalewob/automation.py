@@ -492,6 +492,42 @@ class ScaleWoBAutomation:
             {"text": text},
         )
 
+    def press_enter(self) -> None:
+        """
+        Press the Enter key on the currently active element.
+
+        This method sends an Enter key press to the currently focused element
+        in the browser. It works with any focusable element (input fields,
+        textareas, buttons, links, etc.) and can be used to submit forms,
+        activate buttons, or trigger other Enter key handlers.
+
+        The method operates on whichever element currently has focus. If no
+        element is explicitly focused, the key event will be sent to the
+        document body.
+
+        Raises:
+            CommandError: If the Enter key press fails to execute
+
+        Example:
+            >>> auto.click(x=300, y=150)  # Focus an input field
+            >>> auto.type('search query')
+            >>> auto.press_enter()  # Submit the form
+        """
+        from selenium.webdriver.common.keys import Keys
+
+        assert self.driver is not None
+
+        try:
+            active_element = self.driver.switch_to.active_element
+            active_element.send_keys(Keys.ENTER)
+        except Exception as e:
+            raise CommandError(f"Failed to press Enter key: {e}")
+
+        self._record_trajectory(
+            "press_enter",
+            {},
+        )
+
     def scroll(self, x: int, y: int, direction: str = "down", distance: int = 100):
         """
         Scroll in direction from coordinates (x, y).
@@ -512,8 +548,8 @@ class ScaleWoBAutomation:
             delta_map = {
                 "left": (x - distance, y),
                 "right": (x + distance, y),
-                "up": (x, y - distance),
-                "down": (x, y + distance),
+                "up": (x, y + distance),
+                "down": (x, y - distance),
             }
             self._execute_mobile_touch((x, y), delta_map[direction], move_duration=0.5)
         else:
