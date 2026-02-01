@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.11.0 (2026-02-01)
+
+### Features
+
+- **automation**: Add press_enter method and fix mobile scroll directions
+  ([`f1aee6b`](https://github.com/ScaleWoB/ScaleWoB/commit/f1aee6bd3bfd3b7c379176022250b191f5751206))
+
+
 ## v0.10.3 (2026-01-28)
 
 ### Bug Fixes
