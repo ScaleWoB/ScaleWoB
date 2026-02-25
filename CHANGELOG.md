@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.12.0 (2026-02-25)
+
+### Features
+
+- **automation**: Add optional no-cache mode for environment loads
+  ([`b58c365`](https://github.com/ScaleWoB/ScaleWoB/commit/b58c3651069dc286ce004ce02d02921f6dbf0f6f))
+
+
 ## v0.11.0 (2026-02-01)
 
 ### Features
