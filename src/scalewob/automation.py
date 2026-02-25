@@ -5,6 +5,7 @@ Core automation class for ScaleWoB environments
 import json
 import time
 from typing import Any, Dict, List, Literal, Optional, overload
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from PIL.Image import Image
 
@@ -25,6 +26,7 @@ class ScaleWoBAutomation:
         timeout: Default timeout for operations in milliseconds (default: 5000)
         screenshot_quality: Screenshot quality - 'low' for 1x scale, 'high' for 3x scale on mobile (default: 'high')
         platform: Platform type - 'mobile' for iPhone emulation, 'desktop' for standard browser (default: 'mobile')
+        disable_cache: Disable browser cache and cache the URL with a nonce on load (default: False)
 
     Note:
         Currently only Chrome browser is supported. The browser runs with stealth mode
@@ -64,6 +66,7 @@ class ScaleWoBAutomation:
         timeout: int = 5000,
         screenshot_quality: Literal["low", "high"] = "high",
         platform: Literal["mobile", "desktop"] = "mobile",
+        disable_cache: bool = True,
     ):
         self.env_id = env_id
         self.headless = headless
@@ -78,6 +81,26 @@ class ScaleWoBAutomation:
         self._screenshot_scale = 1.0 if screenshot_quality == "low" else 3.0
         self._cached_tasks: Optional[List[Dict[str, Any]]] = None
         self._cached_original_schemas: Dict[Any, Dict[str, Any]] = {}
+        self.disable_cache = disable_cache
+
+    def _disable_browser_cache(self) -> None:
+        """Disable browser-level caching for subsequent network requests."""
+        assert self.driver is not None
+        self.driver.execute_cdp_cmd("Network.enable", {})
+        self.driver.execute_cdp_cmd("Network.clearBrowserCache", {})
+        self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": True})
+        self.driver.execute_cdp_cmd("Network.setBypassServiceWorker", {"bypass": True})
+
+    def _build_env_url(self) -> str:
+        """Build environment URL, adding a nonce when cache disabling is enabled."""
+        env_url = f"{self.base_url}/{self.env_id}/index.html"
+        if not self.disable_cache:
+            return env_url
+
+        parsed = urlparse(env_url)
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query["_scw_nonce"] = str(int(time.time() * 1000))
+        return urlunparse(parsed._replace(query=urlencode(query)))
 
     def __enter__(self):
         """
@@ -422,7 +445,10 @@ class ScaleWoBAutomation:
             raise ValueError("self.driver not initialized")
 
         # Navigate to standalone environment page
-        env_url = f"{self.base_url}/{self.env_id}/index.html"
+        if self.disable_cache:
+            self._disable_browser_cache()
+
+        env_url = self._build_env_url()
         self.driver.get(env_url)
 
         # Wait for DOM to be ready
@@ -701,9 +727,6 @@ class ScaleWoBAutomation:
         for a fresh evaluation. The environment loads ready to interact without
         requiring any UI button clicks.
 
-        This method calls window.reset() to restore the environment to its initial
-        state, allowing multiple evaluations to be run in the same browser session.
-
         Raises:
             EvaluationError: If evaluation is already active or environment not ready
             BrowserError: If browser not initialized (call start() first)
@@ -716,12 +739,6 @@ class ScaleWoBAutomation:
 
         # Clear trajectory for fresh start
         self._trajectory = []
-
-        # Reset environment to initial state
-        self.driver.execute_script("window.reset();")
-
-        # Wait for environment to stabilize after reset
-        time.sleep(1)  # Buffer for reset and initialization
 
         try:
             state = self.driver.execute_script(
