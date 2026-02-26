@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.12.1 (2026-02-26)
+
+### Bug Fixes
+
+- **automation**: Prevent browser history swipe during horizontal drag gestures
+  ([`afe079d`](https://github.com/ScaleWoB/ScaleWoB/commit/afe079dcdba7c7b4d72f853e227e70fbaf00cbe2))
+
+
 ## v0.12.0 (2026-02-25)
 
 ### Features
