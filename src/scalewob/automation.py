@@ -58,6 +58,8 @@ class ScaleWoBAutomation:
         ...     auto.click(x=640, y=400)  # Click at coordinates
     """
 
+    _DRAG_HORIZONTAL_EDGE_INSET_PX = 16
+
     def __init__(
         self,
         env_id: str,
@@ -240,9 +242,19 @@ class ScaleWoBAutomation:
         height = self.driver.execute_script("return window.innerHeight;")
         return int(width), int(height)
 
-    def _clamp_coordinate(self, value: int, max_value: int) -> int:
-        """Clamp a coordinate to be within valid bounds."""
-        return max(0, min(value, max_value - 1))
+    def _clamp_coordinate(self, value: int, max_value: int, edge_inset: int = 0) -> int:
+        """Clamp a coordinate to be within valid bounds, optionally inset from edges."""
+        upper_bound = max_value - 1
+        if upper_bound <= 0:
+            return 0
+
+        inset = max(0, int(edge_inset))
+        if inset * 2 > upper_bound:
+            inset = upper_bound // 2
+
+        lower_bound = inset
+        upper_bound -= inset
+        return max(lower_bound, min(value, upper_bound))
 
     def _execute_mobile_touch(
         self,
@@ -268,12 +280,19 @@ class ScaleWoBAutomation:
         """
         assert self.driver is not None
 
-        start_x, start_y = start_point
+        raw_start_x, raw_start_y = start_point
         viewport_width, viewport_height = self._get_viewport_dimensions()
 
+        horizontal_edge_inset = 0
+        if end_point is not None and end_point[0] != raw_start_x:
+            # Avoid browser history swipe zones during horizontal drags.
+            horizontal_edge_inset = self._DRAG_HORIZONTAL_EDGE_INSET_PX
+
         start_x, start_y = (
-            self._clamp_coordinate(start_x, viewport_width),
-            self._clamp_coordinate(start_y, viewport_height),
+            self._clamp_coordinate(
+                raw_start_x, viewport_width, edge_inset=horizontal_edge_inset
+            ),
+            self._clamp_coordinate(raw_start_y, viewport_height),
         )
 
         if end_point is None:
@@ -281,7 +300,9 @@ class ScaleWoBAutomation:
         else:
             end_x, end_y = end_point
             end_x, end_y = (
-                self._clamp_coordinate(end_x, viewport_width),
+                self._clamp_coordinate(
+                    end_x, viewport_width, edge_inset=horizontal_edge_inset
+                ),
                 self._clamp_coordinate(end_y, viewport_height),
             )
 
